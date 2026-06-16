@@ -15,6 +15,7 @@ public class BallController : MonoBehaviour
     private float defaultGravityScale;
 
     public bool IsHeldForServe { get; private set; }
+    public Vector2 Velocity => body.velocity;
 
     private void Awake()
     {

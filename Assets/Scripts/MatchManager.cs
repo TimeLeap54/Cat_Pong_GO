@@ -12,6 +12,8 @@ public class MatchManager : MonoBehaviour
     [SerializeField] private Transform opponentSpawn;
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private OpponentAI opponentAI;
+    [SerializeField] private float outOfBoundsY = -2.8f;
+    [SerializeField] private float outOfBoundsX = 10.4f;
 
     private int playerScore;
     private int opponentScore;
@@ -33,6 +35,40 @@ public class MatchManager : MonoBehaviour
         }
 
         UpdateScoreUI();
+    }
+
+    private void Update()
+    {
+        if (pointResolving || matchEnded || ball.IsHeldForServe)
+        {
+            return;
+        }
+
+        var ballPosition = ball.transform.position;
+        if (ballPosition.y < outOfBoundsY)
+        {
+            if (ballPosition.x < 0f)
+            {
+                ScoreOpponent();
+            }
+            else
+            {
+                ScorePlayer();
+            }
+
+            return;
+        }
+
+        if (ballPosition.x < -outOfBoundsX)
+        {
+            ScoreOpponent();
+            return;
+        }
+
+        if (ballPosition.x > outOfBoundsX)
+        {
+            ScorePlayer();
+        }
     }
 
     public void ScorePlayer()

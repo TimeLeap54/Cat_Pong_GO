@@ -39,8 +39,8 @@ public static class Day1MatchSceneGenerator
         var canvas = CreateHud();
         ConnectServeReferences(playerSetup.controller, ball, playerSetup.serveHoldPoint);
         var matchManager = CreateMatchManager(playerSetup, opponentSetup, playerSpawn, opponentSpawn, ball, canvas.scoreUI);
-        CreateGoalZone("LeftScoreZone", new Vector2(-4.5f, -0.58f), new Vector2(8.8f, 1.05f), true, matchManager);
-        CreateGoalZone("RightScoreZone", new Vector2(4.5f, -0.58f), new Vector2(8.8f, 1.05f), false, matchManager);
+        CreateGoalZone("LeftScoreZone", new Vector2(-5.05f, -1.2f), new Vector2(10.1f, 2.2f), true, matchManager);
+        CreateGoalZone("RightScoreZone", new Vector2(5.05f, -1.2f), new Vector2(10.1f, 2.2f), false, matchManager);
 
         EditorSceneManager.SaveScene(scene, $"{ScenesPath}/Match.unity");
         EditorBuildSettings.scenes = new[]
