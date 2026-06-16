@@ -5,9 +5,6 @@ public class BallController : MonoBehaviour
 {
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private Vector2 serveOffset = new Vector2(0.85f, 0.45f);
-    [SerializeField] private Vector2 minServeOffset = new Vector2(0.45f, 0.05f);
-    [SerializeField] private Vector2 maxServeOffset = new Vector2(1.45f, 1.35f);
-    [SerializeField] private float serveAimSpeed = 1.7f;
 
     private Rigidbody2D body;
     private Vector3 startPosition;
@@ -69,18 +66,6 @@ public class BallController : MonoBehaviour
         }
 
         body.position = (Vector2)serveAnchor.position + serveOffset;
-    }
-
-    public void AdjustServeOffset(Vector2 input, float deltaTime)
-    {
-        if (!IsHeldForServe)
-        {
-            return;
-        }
-
-        serveOffset += input * serveAimSpeed * deltaTime;
-        serveOffset.x = Mathf.Clamp(serveOffset.x, minServeOffset.x, maxServeOffset.x);
-        serveOffset.y = Mathf.Clamp(serveOffset.y, minServeOffset.y, maxServeOffset.y);
     }
 
     public void LaunchServe(Vector2 velocity)

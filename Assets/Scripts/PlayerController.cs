@@ -33,12 +33,6 @@ public class PlayerController : MonoBehaviour
     {
         UpdateGrounded();
 
-        if (serveBall != null && serveBall.IsHeldForServe)
-        {
-            var serveAim = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            serveBall.AdjustServeOffset(serveAim, Time.deltaTime);
-        }
-
         if (Input.GetKeyDown(KeyCode.Space) && grounded)
         {
             body.velocity = new Vector2(body.velocity.x, jumpForce);

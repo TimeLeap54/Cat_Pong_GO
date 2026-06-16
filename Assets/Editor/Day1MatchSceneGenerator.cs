@@ -12,17 +12,21 @@ public static class Day1MatchSceneGenerator
 {
     private const string ScenesPath = "Assets/Scenes";
     private const string GeneratedPath = "Assets/Generated";
+    private const string PhysicsPath = "Assets/Physics";
 
     private static Sprite squareSprite;
     private static Sprite circleSprite;
+    private static PhysicsMaterial2D ballPhysicsMaterial;
 
     [MenuItem("Tools/CatPong/Generate Match Scene")]
     public static void Generate()
     {
         Directory.CreateDirectory(ScenesPath);
         Directory.CreateDirectory(GeneratedPath);
+        Directory.CreateDirectory(PhysicsPath);
 
         EnsureProjectIs2DURP();
+        EnsurePhysicsMaterials();
         EnsureSprites();
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -139,7 +143,8 @@ public static class Day1MatchSceneGenerator
         body.gravityScale = 1.0f;
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-        ball.AddComponent<CircleCollider2D>();
+        var collider = ball.AddComponent<CircleCollider2D>();
+        collider.sharedMaterial = ballPhysicsMaterial;
         return ball.AddComponent<BallController>();
     }
 
@@ -232,7 +237,7 @@ public static class Day1MatchSceneGenerator
         roundText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         roundText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
-        var helpText = CreateText("HelpText", canvasObject.transform, "Serve: WASD aim, J lift, K spike", new Vector2(0f, -132f), 18, TextAnchor.MiddleCenter);
+        var helpText = CreateText("HelpText", canvasObject.transform, "Move: A/D or arrows   Jump: Space   Serve/Swing: J lift, K spike", new Vector2(0f, -132f), 18, TextAnchor.MiddleCenter);
         helpText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         helpText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
@@ -305,6 +310,21 @@ public static class Day1MatchSceneGenerator
     {
         squareSprite = CreateSpriteAsset($"{GeneratedPath}/square.png", false);
         circleSprite = CreateSpriteAsset($"{GeneratedPath}/circle.png", true);
+    }
+
+    private static void EnsurePhysicsMaterials()
+    {
+        var path = $"{PhysicsPath}/BallBounce.physicsMaterial2D";
+        ballPhysicsMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(path);
+        if (ballPhysicsMaterial == null)
+        {
+            ballPhysicsMaterial = new PhysicsMaterial2D("BallBounce");
+            AssetDatabase.CreateAsset(ballPhysicsMaterial, path);
+        }
+
+        ballPhysicsMaterial.friction = 0.02f;
+        ballPhysicsMaterial.bounciness = 0.82f;
+        EditorUtility.SetDirty(ballPhysicsMaterial);
     }
 
     private static Sprite CreateSpriteAsset(string path, bool circle)
