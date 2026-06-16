@@ -8,10 +8,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
-    [SerializeField] private float swingRadius = 1.05f;
+    [SerializeField] private float swingRadius = 1.55f;
     [SerializeField] private float swingPower = 12f;
-    [SerializeField] private Vector2 upwardServeVelocity = new Vector2(9.5f, 6.4f);
-    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(11f, -2.2f);
+    [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
+    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(10.2f, -1.6f);
+    [SerializeField] private float minServePowerMultiplier = 0.78f;
+    [SerializeField] private float maxServePowerMultiplier = 1.35f;
+    [SerializeField] private float fullChargeTime = 0.9f;
     [SerializeField] private float swingCooldown = 0.22f;
     [SerializeField] private BallController serveBall;
     [SerializeField] private Transform groundCheck;
@@ -23,10 +26,37 @@ public class PlayerController : MonoBehaviour
     private bool grounded;
     private float nextSwingTime;
     private float groundCheckLockedUntil;
+    private bool chargingServe;
+    private float serveChargeStartedAt;
+    private Vector2 chargedServeVelocity;
 
     private void Awake()
     {
+        UpgradeSerializedDefaults();
         body = GetComponent<Rigidbody2D>();
+    }
+
+    private void UpgradeSerializedDefaults()
+    {
+        if (Mathf.Approximately(swingRadius, 1.05f))
+        {
+            swingRadius = 1.55f;
+        }
+
+        if (Approximately(upwardServeVelocity, new Vector2(9.5f, 6.4f)))
+        {
+            upwardServeVelocity = new Vector2(8.6f, 5.8f);
+        }
+
+        if (Approximately(spikeServeVelocity, new Vector2(11f, -2.2f)))
+        {
+            spikeServeVelocity = new Vector2(10.2f, -1.6f);
+        }
+
+        if (swingPoint != null && Approximately((Vector2)swingPoint.localPosition, new Vector2(0.72f, 0.3f)))
+        {
+            swingPoint.localPosition = new Vector3(0.88f, 0.18f, 0f);
+        }
     }
 
     private void Update()
@@ -40,24 +70,35 @@ public class PlayerController : MonoBehaviour
             groundCheckLockedUntil = Time.time + jumpGroundLockout;
         }
 
-        if ((Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0)) && Time.time >= nextSwingTime)
+        if (Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0))
         {
-            if (TryServe(upwardServeVelocity))
+            if (TryStartServeCharge(upwardServeVelocity))
             {
                 return;
             }
 
-            Swing(new Vector2(1f, 0.72f).normalized * swingPower);
+            if (Time.time >= nextSwingTime)
+            {
+                Swing(new Vector2(1f, 0.72f).normalized * swingPower);
+            }
         }
 
-        if (Input.GetKeyDown(KeyCode.K) && Time.time >= nextSwingTime)
+        if (Input.GetKeyDown(KeyCode.K))
         {
-            if (TryServe(spikeServeVelocity))
+            if (TryStartServeCharge(spikeServeVelocity))
             {
                 return;
             }
 
-            Swing(new Vector2(1f, -0.25f).normalized * swingPower);
+            if (Time.time >= nextSwingTime)
+            {
+                Swing(new Vector2(1f, -0.25f).normalized * swingPower);
+            }
+        }
+
+        if (Input.GetKeyUp(KeyCode.J) || Input.GetMouseButtonUp(0) || Input.GetKeyUp(KeyCode.K))
+        {
+            CompleteServeCharge();
         }
     }
 
@@ -71,16 +112,32 @@ public class PlayerController : MonoBehaviour
         body.position = position;
     }
 
-    private bool TryServe(Vector2 velocity)
+    private bool TryStartServeCharge(Vector2 velocity)
     {
-        if (serveBall == null || !serveBall.IsHeldForServe)
+        if (serveBall == null || !serveBall.IsHeldForServe || Time.time < nextSwingTime)
         {
             return false;
         }
 
-        nextSwingTime = Time.time + swingCooldown;
-        serveBall.LaunchServe(velocity);
+        chargingServe = true;
+        serveChargeStartedAt = Time.time;
+        chargedServeVelocity = velocity;
         return true;
+    }
+
+    private void CompleteServeCharge()
+    {
+        if (!chargingServe || serveBall == null || !serveBall.IsHeldForServe)
+        {
+            chargingServe = false;
+            return;
+        }
+
+        var chargePercent = Mathf.Clamp01((Time.time - serveChargeStartedAt) / fullChargeTime);
+        var powerMultiplier = Mathf.Lerp(minServePowerMultiplier, maxServePowerMultiplier, chargePercent);
+        nextSwingTime = Time.time + swingCooldown;
+        serveBall.LaunchServe(chargedServeVelocity * powerMultiplier);
+        chargingServe = false;
     }
 
     private void UpdateGrounded()
@@ -121,5 +178,10 @@ public class PlayerController : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
         }
+    }
+
+    private static bool Approximately(Vector2 a, Vector2 b)
+    {
+        return Mathf.Abs(a.x - b.x) < 0.01f && Mathf.Abs(a.y - b.y) < 0.01f;
     }
 }

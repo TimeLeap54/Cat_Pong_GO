@@ -96,11 +96,11 @@ public static class Day1MatchSceneGenerator
 
         var swingPoint = new GameObject("SwingPoint").transform;
         swingPoint.SetParent(player.transform);
-        swingPoint.localPosition = new Vector3(0.72f, 0.3f, 0f);
+        swingPoint.localPosition = new Vector3(0.88f, 0.18f, 0f);
 
         var serveHoldPoint = new GameObject("ServeHoldPoint").transform;
         serveHoldPoint.SetParent(player.transform);
-        serveHoldPoint.localPosition = new Vector3(0.58f, 0.22f, 0f);
+        serveHoldPoint.localPosition = new Vector3(0.48f, 0.04f, 0f);
 
         var groundCheck = new GameObject("GroundCheck").transform;
         groundCheck.SetParent(player.transform);
@@ -237,9 +237,10 @@ public static class Day1MatchSceneGenerator
         roundText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         roundText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
-        var helpText = CreateText("HelpText", canvasObject.transform, "Move: A/D or arrows   Jump: Space   Serve/Swing: J lift, K spike", new Vector2(0f, -132f), 18, TextAnchor.MiddleCenter);
+        var helpText = CreateText("HelpText", canvasObject.transform, "Move: A/D or arrows   Jump: Space   Hold J/K to charge serve, tap to swing", new Vector2(0f, -132f), 18, TextAnchor.MiddleCenter);
         helpText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         helpText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+        helpText.rectTransform.sizeDelta = new Vector2(760f, 70f);
 
         var resultPanel = CreatePanel("ResultPanel", canvasObject.transform, new Vector2(0f, 0f), new Vector2(380f, 245f));
         var resultText = CreateText("ResultText", resultPanel.transform, "You Win!", new Vector2(0f, 70f), 32, TextAnchor.MiddleCenter);
