@@ -4,13 +4,16 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 7f;
-    [SerializeField] private float jumpForce = 9f;
+    [SerializeField] private float jumpForce = 6.6f;
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
     [SerializeField] private float swingRadius = 1.05f;
     [SerializeField] private float swingPower = 12f;
+    [SerializeField] private Vector2 upwardServeVelocity = new Vector2(9.5f, 6.4f);
+    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(11f, -2.2f);
     [SerializeField] private float swingCooldown = 0.22f;
+    [SerializeField] private BallController serveBall;
 
     private Rigidbody2D body;
     private bool grounded;
@@ -23,6 +26,12 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (serveBall != null && serveBall.IsHeldForServe)
+        {
+            var serveAim = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            serveBall.AdjustServeOffset(serveAim, Time.deltaTime);
+        }
+
         if (Input.GetKeyDown(KeyCode.Space) && grounded)
         {
             body.velocity = new Vector2(body.velocity.x, jumpForce);
@@ -31,7 +40,22 @@ public class PlayerController : MonoBehaviour
 
         if ((Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0)) && Time.time >= nextSwingTime)
         {
-            Swing();
+            if (TryServe(upwardServeVelocity))
+            {
+                return;
+            }
+
+            Swing(new Vector2(1f, 0.72f).normalized * swingPower);
+        }
+
+        if (Input.GetKeyDown(KeyCode.K) && Time.time >= nextSwingTime)
+        {
+            if (TryServe(spikeServeVelocity))
+            {
+                return;
+            }
+
+            Swing(new Vector2(1f, -0.25f).normalized * swingPower);
         }
     }
 
@@ -45,7 +69,19 @@ public class PlayerController : MonoBehaviour
         body.position = position;
     }
 
-    private void Swing()
+    private bool TryServe(Vector2 velocity)
+    {
+        if (serveBall == null || !serveBall.IsHeldForServe)
+        {
+            return false;
+        }
+
+        nextSwingTime = Time.time + swingCooldown;
+        serveBall.LaunchServe(velocity);
+        return true;
+    }
+
+    private void Swing(Vector2 velocity)
     {
         nextSwingTime = Time.time + swingCooldown;
 
@@ -54,7 +90,7 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.TryGetComponent(out BallController ball))
             {
-                ball.Hit(new Vector2(1f, 0.72f).normalized * swingPower);
+                ball.Hit(velocity);
                 break;
             }
         }

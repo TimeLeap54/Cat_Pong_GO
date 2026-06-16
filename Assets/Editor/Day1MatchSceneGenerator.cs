@@ -29,12 +29,13 @@ public static class Day1MatchSceneGenerator
 
         CreateCamera();
         CreateCourt();
-        var player = CreatePlayer();
+        var playerSetup = CreatePlayer();
         CreateOpponent();
         var ball = CreateBall();
         var playerSpawn = CreateMarker("PlayerSpawn", new Vector2(-5.5f, -0.2f));
         var canvas = CreateHud();
-        var matchManager = CreateMatchManager(player, playerSpawn, ball, canvas.scoreUI);
+        ConnectServeReferences(playerSetup.controller, ball, playerSetup.serveHoldPoint);
+        var matchManager = CreateMatchManager(playerSetup.player, playerSpawn, playerSetup.serveHoldPoint, ball, canvas.scoreUI);
         CreateGoalZone("LeftScoreZone", new Vector2(-4.5f, -0.88f), new Vector2(8.8f, 0.38f), true, matchManager);
         CreateGoalZone("RightScoreZone", new Vector2(4.5f, -0.88f), new Vector2(8.8f, 0.38f), false, matchManager);
 
@@ -78,18 +79,24 @@ public static class Day1MatchSceneGenerator
         CreateBoundary("BoundaryRight", new Vector2(10.6f, 2.2f), new Vector2(0.25f, 7f));
     }
 
-    private static GameObject CreatePlayer()
+    private static PlayerSetup CreatePlayer()
     {
         var player = CreateBox("Player", new Vector2(-5.5f, -0.2f), new Vector2(0.9f, 1.45f), new Color(1f, 0.62f, 0.28f), true);
         var body = player.AddComponent<Rigidbody2D>();
         body.freezeRotation = true;
+        body.gravityScale = 1.75f;
+
         var swingPoint = new GameObject("SwingPoint").transform;
         swingPoint.SetParent(player.transform);
         swingPoint.localPosition = new Vector3(0.72f, 0.3f, 0f);
 
+        var serveHoldPoint = new GameObject("ServeHoldPoint").transform;
+        serveHoldPoint.SetParent(player.transform);
+        serveHoldPoint.localPosition = new Vector3(0.58f, 0.22f, 0f);
+
         var controller = player.AddComponent<PlayerController>();
         SetReference(controller, "swingPoint", swingPoint);
-        return player;
+        return new PlayerSetup(player, controller, serveHoldPoint);
     }
 
     private static void CreateOpponent()
@@ -160,7 +167,13 @@ public static class Day1MatchSceneGenerator
         goalZone.Init(matchManager, playerSide);
     }
 
-    private static MatchManager CreateMatchManager(GameObject player, GameObject playerSpawn, BallController ball, ScoreUI scoreUI)
+    private static void ConnectServeReferences(PlayerController player, BallController ball, Transform serveAnchor)
+    {
+        SetReference(player, "serveBall", ball);
+        SetReference(ball, "serveAnchor", serveAnchor);
+    }
+
+    private static MatchManager CreateMatchManager(GameObject player, GameObject playerSpawn, Transform serveAnchor, BallController ball, ScoreUI scoreUI)
     {
         var obj = new GameObject("MatchManager");
         var manager = obj.AddComponent<MatchManager>();
@@ -168,6 +181,7 @@ public static class Day1MatchSceneGenerator
         SetReference(manager, "scoreUI", scoreUI);
         SetReference(manager, "player", player.transform);
         SetReference(manager, "playerSpawn", playerSpawn.transform);
+        SetReference(manager, "serveAnchor", serveAnchor);
         return manager;
     }
 
@@ -186,6 +200,10 @@ public static class Day1MatchSceneGenerator
         var scoreText = CreateText("ScoreText", canvasObject.transform, "0 : 0", new Vector2(0f, -45f), 42, TextAnchor.MiddleCenter);
         scoreText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         scoreText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+
+        var helpText = CreateText("HelpText", canvasObject.transform, "Serve: WASD aim, J lift, K spike", new Vector2(0f, -95f), 20, TextAnchor.MiddleCenter);
+        helpText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+        helpText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
         var resultPanel = CreatePanel("ResultPanel", canvasObject.transform, new Vector2(0f, 0f), new Vector2(360f, 190f));
         var resultText = CreateText("ResultText", resultPanel.transform, "You Win!", new Vector2(0f, 38f), 34, TextAnchor.MiddleCenter);
@@ -312,6 +330,20 @@ public static class Day1MatchSceneGenerator
         public HudReferences(ScoreUI scoreUI)
         {
             this.scoreUI = scoreUI;
+        }
+    }
+
+    private readonly struct PlayerSetup
+    {
+        public readonly GameObject player;
+        public readonly PlayerController controller;
+        public readonly Transform serveHoldPoint;
+
+        public PlayerSetup(GameObject player, PlayerController controller, Transform serveHoldPoint)
+        {
+            this.player = player;
+            this.controller = controller;
+            this.serveHoldPoint = serveHoldPoint;
         }
     }
 }

@@ -8,6 +8,7 @@ public class MatchManager : MonoBehaviour
     [SerializeField] private ScoreUI scoreUI;
     [SerializeField] private Transform player;
     [SerializeField] private Transform playerSpawn;
+    [SerializeField] private Transform serveAnchor;
 
     private int playerScore;
     private int opponentScore;
@@ -16,6 +17,11 @@ public class MatchManager : MonoBehaviour
 
     private void Start()
     {
+        if (serveAnchor != null)
+        {
+            ball.SetServeAnchor(serveAnchor);
+        }
+
         UpdateScoreUI();
     }
 
@@ -79,6 +85,11 @@ public class MatchManager : MonoBehaviour
             }
         }
 
+        if (serveAnchor != null)
+        {
+            ball.SetServeAnchor(serveAnchor);
+        }
+
         ball.ResetBall();
     }
 
@@ -93,4 +104,3 @@ public class MatchManager : MonoBehaviour
         scoreUI.SetScore(playerScore, opponentScore);
     }
 }
-
