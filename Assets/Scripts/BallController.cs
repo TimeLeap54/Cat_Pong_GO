@@ -17,6 +17,7 @@ public class BallController : MonoBehaviour
     private BallTouchSide doubleTouchFaultSide;
     private bool groundTouchPending;
     private Vector2 pendingGroundTouchPosition;
+    private bool sideWallTouchPending;
 
     public bool IsHeldForServe { get; private set; }
     public Vector2 Velocity => body.velocity;
@@ -162,6 +163,17 @@ public class BallController : MonoBehaviour
         return true;
     }
 
+    public bool ConsumeSideWallTouch()
+    {
+        if (!sideWallTouchPending)
+        {
+            return false;
+        }
+
+        sideWallTouchPending = false;
+        return true;
+    }
+
     private static bool Approximately(Vector2 a, Vector2 b)
     {
         return Mathf.Abs(a.x - b.x) < 0.01f && Mathf.Abs(a.y - b.y) < 0.01f;
@@ -177,7 +189,18 @@ public class BallController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (IsHeldForServe || !collision.collider.CompareTag("Ground"))
+        if (IsHeldForServe)
+        {
+            return;
+        }
+
+        if (collision.collider.name == "BoundaryLeft" || collision.collider.name == "BoundaryRight")
+        {
+            sideWallTouchPending = true;
+            return;
+        }
+
+        if (!collision.collider.CompareTag("Ground"))
         {
             return;
         }
@@ -193,5 +216,6 @@ public class BallController : MonoBehaviour
         doubleTouchFaultPending = false;
         doubleTouchFaultSide = BallTouchSide.None;
         groundTouchPending = false;
+        sideWallTouchPending = false;
     }
 }

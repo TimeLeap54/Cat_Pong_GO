@@ -69,6 +69,12 @@ public class MatchManager : MonoBehaviour
             return;
         }
 
+        if (ball.ConsumeSideWallTouch())
+        {
+            ScoreOutAgainstLastTouch();
+            return;
+        }
+
         if (ball.ConsumeGroundTouch(out var groundPosition))
         {
             ResolveGroundTouch(groundPosition);
@@ -122,17 +128,22 @@ public class MatchManager : MonoBehaviour
         var landedOutside = Mathf.Abs(groundPosition.x) > outOfBoundsX;
         if (landedOutside)
         {
-            if (ball.LastTouchSide == BallTouchSide.None)
-            {
-                ScoreByCourtSide(groundPosition.x);
-                return;
-            }
-
-            ScoreAgainst(ball.LastTouchSide);
+            ScoreOutAgainstLastTouch(groundPosition.x);
             return;
         }
 
         ScoreByCourtSide(groundPosition.x);
+    }
+
+    private void ScoreOutAgainstLastTouch(float fallbackX = 0f)
+    {
+        if (ball.LastTouchSide == BallTouchSide.None)
+        {
+            ScoreByCourtSide(fallbackX);
+            return;
+        }
+
+        ScoreAgainst(ball.LastTouchSide);
     }
 
     private void ScoreByCourtSide(float x)

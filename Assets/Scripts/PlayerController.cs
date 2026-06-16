@@ -21,10 +21,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform groundCheck;
     [SerializeField] private Vector2 groundCheckSize = new Vector2(0.72f, 0.08f);
     [SerializeField] private LayerMask groundLayer = ~0;
+    [SerializeField] private int maxJumpCount = 2;
     [SerializeField] private float jumpGroundLockout = 0.12f;
 
     private Rigidbody2D body;
     private bool grounded;
+    private int jumpsRemaining;
     private float nextSwingTime;
     private float groundCheckLockedUntil;
     private bool chargingServe;
@@ -35,6 +37,7 @@ public class PlayerController : MonoBehaviour
     {
         UpgradeSerializedDefaults();
         body = GetComponent<Rigidbody2D>();
+        jumpsRemaining = maxJumpCount;
     }
 
     private void UpgradeSerializedDefaults()
@@ -69,10 +72,11 @@ public class PlayerController : MonoBehaviour
     {
         UpdateGrounded();
 
-        if (Input.GetKeyDown(KeyCode.Space) && grounded)
+        if (Input.GetKeyDown(KeyCode.Space) && jumpsRemaining > 0)
         {
             body.velocity = new Vector2(body.velocity.x, jumpForce);
             grounded = false;
+            jumpsRemaining--;
             groundCheckLockedUntil = Time.time + jumpGroundLockout;
         }
 
@@ -161,6 +165,7 @@ public class PlayerController : MonoBehaviour
             if (!hit.isTrigger && hit.CompareTag("Ground"))
             {
                 grounded = true;
+                jumpsRemaining = maxJumpCount;
                 return;
             }
         }
