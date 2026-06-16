@@ -4,7 +4,7 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 7f;
-    [SerializeField] private float jumpForce = 6.6f;
+    [SerializeField] private float jumpForce = 7.25f;
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
@@ -39,6 +39,11 @@ public class PlayerController : MonoBehaviour
 
     private void UpgradeSerializedDefaults()
     {
+        if (Mathf.Approximately(jumpForce, 6.6f))
+        {
+            jumpForce = 7.25f;
+        }
+
         if (Approximately(upwardServeVelocity, new Vector2(9.5f, 6.4f)))
         {
             upwardServeVelocity = new Vector2(8.6f, 5.8f);
@@ -170,7 +175,7 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.TryGetComponent(out BallController ball))
             {
-                ball.Hit(velocity);
+                ball.Hit(velocity, BallTouchSide.Player);
                 break;
             }
         }

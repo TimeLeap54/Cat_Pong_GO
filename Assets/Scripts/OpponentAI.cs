@@ -102,7 +102,7 @@ public class OpponentAI : MonoBehaviour
                 var power = Mathf.Lerp(8.5f, 12.5f, profile.aggression);
                 var vertical = Mathf.Lerp(0.55f, 0.95f, profile.hitAccuracy);
                 var error = Random.Range(-0.7f, 0.7f) * (1f - profile.hitAccuracy);
-                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power);
+                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent);
                 nextSwingTime = Time.time + 0.28f;
                 break;
             }

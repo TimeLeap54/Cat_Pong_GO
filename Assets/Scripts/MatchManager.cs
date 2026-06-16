@@ -63,30 +63,23 @@ public class MatchManager : MonoBehaviour
             return;
         }
 
+        if (ball.ConsumeDoubleTouchFault(out var faultSide))
+        {
+            ScoreAgainst(faultSide);
+            return;
+        }
+
+        if (ball.ConsumeGroundTouch(out var groundPosition))
+        {
+            ResolveGroundTouch(groundPosition);
+            return;
+        }
+
         var ballPosition = ball.transform.position;
         if (ballPosition.y < outOfBoundsY)
         {
-            if (ballPosition.x < 0f)
-            {
-                ScoreOpponent();
-            }
-            else
-            {
-                ScorePlayer();
-            }
-
+            ResolveGroundTouch(ballPosition);
             return;
-        }
-
-        if (ballPosition.x < -outOfBoundsX)
-        {
-            ScoreOpponent();
-            return;
-        }
-
-        if (ballPosition.x > outOfBoundsX)
-        {
-            ScorePlayer();
         }
     }
 
@@ -110,6 +103,48 @@ public class MatchManager : MonoBehaviour
 
         opponentScore++;
         ResolvePoint();
+    }
+
+    private void ScoreAgainst(BallTouchSide faultSide)
+    {
+        if (faultSide == BallTouchSide.Player)
+        {
+            ScoreOpponent();
+        }
+        else if (faultSide == BallTouchSide.Opponent)
+        {
+            ScorePlayer();
+        }
+    }
+
+    private void ResolveGroundTouch(Vector2 groundPosition)
+    {
+        var landedOutside = Mathf.Abs(groundPosition.x) > outOfBoundsX;
+        if (landedOutside)
+        {
+            if (ball.LastTouchSide == BallTouchSide.None)
+            {
+                ScoreByCourtSide(groundPosition.x);
+                return;
+            }
+
+            ScoreAgainst(ball.LastTouchSide);
+            return;
+        }
+
+        ScoreByCourtSide(groundPosition.x);
+    }
+
+    private void ScoreByCourtSide(float x)
+    {
+        if (x < 0f)
+        {
+            ScoreOpponent();
+        }
+        else
+        {
+            ScorePlayer();
+        }
     }
 
     private void ResolvePoint()

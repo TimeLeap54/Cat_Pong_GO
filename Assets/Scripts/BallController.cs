@@ -11,9 +11,16 @@ public class BallController : MonoBehaviour
     private Vector3 startPosition;
     private RigidbodyType2D defaultBodyType;
     private float defaultGravityScale;
+    private BallTouchSide lastTouchSide = BallTouchSide.None;
+    private bool crossedNetSinceLastTouch;
+    private bool doubleTouchFaultPending;
+    private BallTouchSide doubleTouchFaultSide;
+    private bool groundTouchPending;
+    private Vector2 pendingGroundTouchPosition;
 
     public bool IsHeldForServe { get; private set; }
     public Vector2 Velocity => body.velocity;
+    public BallTouchSide LastTouchSide => lastTouchSide;
 
     private void Awake()
     {
@@ -43,6 +50,18 @@ public class BallController : MonoBehaviour
         BeginServe();
     }
 
+    private void Update()
+    {
+        if (lastTouchSide == BallTouchSide.Player && transform.position.x > 0f)
+        {
+            crossedNetSinceLastTouch = true;
+        }
+        else if (lastTouchSide == BallTouchSide.Opponent && transform.position.x < 0f)
+        {
+            crossedNetSinceLastTouch = true;
+        }
+    }
+
     private void LateUpdate()
     {
         if (!IsHeldForServe || serveAnchor == null)
@@ -58,6 +77,7 @@ public class BallController : MonoBehaviour
     {
         body.velocity = Vector2.zero;
         body.angularVelocity = 0f;
+        ResetRallyState();
         BeginServe();
     }
 
@@ -75,6 +95,7 @@ public class BallController : MonoBehaviour
         body.velocity = Vector2.zero;
         body.angularVelocity = 0f;
         SetColliderEnabled(false);
+        ResetRallyState();
 
         if (serveAnchor == null)
         {
@@ -87,20 +108,58 @@ public class BallController : MonoBehaviour
 
     public void LaunchServe(Vector2 velocity)
     {
-        IsHeldForServe = false;
-        body.bodyType = defaultBodyType;
-        body.gravityScale = defaultGravityScale;
-        SetColliderEnabled(true);
-        Hit(velocity);
+        Hit(velocity, BallTouchSide.Player);
     }
 
     public void Hit(Vector2 velocity)
+    {
+        Hit(velocity, BallTouchSide.None);
+    }
+
+    public void Hit(Vector2 velocity, BallTouchSide touchSide)
     {
         IsHeldForServe = false;
         body.bodyType = defaultBodyType;
         body.gravityScale = defaultGravityScale;
         SetColliderEnabled(true);
+
+        if (touchSide != BallTouchSide.None)
+        {
+            if (lastTouchSide == touchSide && !crossedNetSinceLastTouch)
+            {
+                doubleTouchFaultPending = true;
+                doubleTouchFaultSide = touchSide;
+            }
+
+            lastTouchSide = touchSide;
+            crossedNetSinceLastTouch = false;
+        }
+
         body.velocity = velocity;
+    }
+
+    public bool ConsumeGroundTouch(out Vector2 position)
+    {
+        position = pendingGroundTouchPosition;
+        if (!groundTouchPending)
+        {
+            return false;
+        }
+
+        groundTouchPending = false;
+        return true;
+    }
+
+    public bool ConsumeDoubleTouchFault(out BallTouchSide faultSide)
+    {
+        faultSide = doubleTouchFaultSide;
+        if (!doubleTouchFaultPending)
+        {
+            return false;
+        }
+
+        doubleTouchFaultPending = false;
+        return true;
     }
 
     private static bool Approximately(Vector2 a, Vector2 b)
@@ -114,5 +173,25 @@ public class BallController : MonoBehaviour
         {
             ballCollider.enabled = enabled;
         }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (IsHeldForServe || !collision.collider.CompareTag("Ground"))
+        {
+            return;
+        }
+
+        groundTouchPending = true;
+        pendingGroundTouchPosition = collision.GetContact(0).point;
+    }
+
+    private void ResetRallyState()
+    {
+        lastTouchSide = BallTouchSide.None;
+        crossedNetSinceLastTouch = false;
+        doubleTouchFaultPending = false;
+        doubleTouchFaultSide = BallTouchSide.None;
+        groundTouchPending = false;
     }
 }
