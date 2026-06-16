@@ -4,6 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEditorInternal;
 using UnityEngine.UI;
 
@@ -27,17 +28,19 @@ public static class Day1MatchSceneGenerator
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         scene.name = "Match";
 
+        CreateTournamentManager();
         CreateCamera();
         CreateCourt();
         var playerSetup = CreatePlayer();
-        CreateOpponent();
+        var opponentSetup = CreateOpponent();
         var ball = CreateBall();
         var playerSpawn = CreateMarker("PlayerSpawn", new Vector2(-5.5f, -0.2f));
+        var opponentSpawn = CreateMarker("OpponentSpawn", new Vector2(5.5f, -0.2f));
         var canvas = CreateHud();
         ConnectServeReferences(playerSetup.controller, ball, playerSetup.serveHoldPoint);
-        var matchManager = CreateMatchManager(playerSetup.player, playerSpawn, playerSetup.serveHoldPoint, ball, canvas.scoreUI);
-        CreateGoalZone("LeftScoreZone", new Vector2(-4.5f, -0.88f), new Vector2(8.8f, 0.38f), true, matchManager);
-        CreateGoalZone("RightScoreZone", new Vector2(4.5f, -0.88f), new Vector2(8.8f, 0.38f), false, matchManager);
+        var matchManager = CreateMatchManager(playerSetup, opponentSetup, playerSpawn, opponentSpawn, ball, canvas.scoreUI);
+        CreateGoalZone("LeftScoreZone", new Vector2(-4.5f, -0.58f), new Vector2(8.8f, 1.05f), true, matchManager);
+        CreateGoalZone("RightScoreZone", new Vector2(4.5f, -0.58f), new Vector2(8.8f, 1.05f), false, matchManager);
 
         EditorSceneManager.SaveScene(scene, $"{ScenesPath}/Match.unity");
         EditorBuildSettings.scenes = new[]
@@ -68,6 +71,7 @@ public static class Day1MatchSceneGenerator
         camera.orthographic = true;
         camera.orthographicSize = 5.2f;
         camera.backgroundColor = new Color(0.52f, 0.78f, 0.92f);
+        cameraObject.AddComponent<UniversalAdditionalCameraData>();
     }
 
     private static void CreateCourt()
@@ -99,12 +103,20 @@ public static class Day1MatchSceneGenerator
         return new PlayerSetup(player, controller, serveHoldPoint);
     }
 
-    private static void CreateOpponent()
+    private static OpponentSetup CreateOpponent()
     {
         var opponent = CreateBox("Opponent", new Vector2(5.5f, -0.2f), new Vector2(0.9f, 1.45f), new Color(0.35f, 0.55f, 0.95f), true);
         var body = opponent.AddComponent<Rigidbody2D>();
         body.freezeRotation = true;
-        body.bodyType = RigidbodyType2D.Kinematic;
+        body.gravityScale = 1.75f;
+
+        var swingPoint = new GameObject("OpponentSwingPoint").transform;
+        swingPoint.SetParent(opponent.transform);
+        swingPoint.localPosition = new Vector3(-0.72f, 0.3f, 0f);
+
+        var ai = opponent.AddComponent<OpponentAI>();
+        SetReference(ai, "swingPoint", swingPoint);
+        return new OpponentSetup(opponent, ai);
     }
 
     private static BallController CreateBall()
@@ -173,15 +185,24 @@ public static class Day1MatchSceneGenerator
         SetReference(ball, "serveAnchor", serveAnchor);
     }
 
-    private static MatchManager CreateMatchManager(GameObject player, GameObject playerSpawn, Transform serveAnchor, BallController ball, ScoreUI scoreUI)
+    private static void CreateTournamentManager()
+    {
+        var obj = new GameObject("TournamentManager");
+        obj.AddComponent<TournamentManager>().StartTournament();
+    }
+
+    private static MatchManager CreateMatchManager(PlayerSetup playerSetup, OpponentSetup opponentSetup, GameObject playerSpawn, GameObject opponentSpawn, BallController ball, ScoreUI scoreUI)
     {
         var obj = new GameObject("MatchManager");
         var manager = obj.AddComponent<MatchManager>();
         SetReference(manager, "ball", ball);
         SetReference(manager, "scoreUI", scoreUI);
-        SetReference(manager, "player", player.transform);
+        SetReference(manager, "player", playerSetup.player.transform);
+        SetReference(manager, "opponent", opponentSetup.opponent.transform);
         SetReference(manager, "playerSpawn", playerSpawn.transform);
-        SetReference(manager, "serveAnchor", serveAnchor);
+        SetReference(manager, "opponentSpawn", opponentSpawn.transform);
+        SetReference(manager, "serveAnchor", playerSetup.serveHoldPoint);
+        SetReference(manager, "opponentAI", opponentSetup.ai);
         return manager;
     }
 
@@ -201,18 +222,25 @@ public static class Day1MatchSceneGenerator
         scoreText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         scoreText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
-        var helpText = CreateText("HelpText", canvasObject.transform, "Serve: WASD aim, J lift, K spike", new Vector2(0f, -95f), 20, TextAnchor.MiddleCenter);
+        var roundText = CreateText("RoundText", canvasObject.transform, "Round 1: Rookie Cat", new Vector2(0f, -92f), 22, TextAnchor.MiddleCenter);
+        roundText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+        roundText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+
+        var helpText = CreateText("HelpText", canvasObject.transform, "Serve: WASD aim, J lift, K spike", new Vector2(0f, -132f), 18, TextAnchor.MiddleCenter);
         helpText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
         helpText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
 
-        var resultPanel = CreatePanel("ResultPanel", canvasObject.transform, new Vector2(0f, 0f), new Vector2(360f, 190f));
-        var resultText = CreateText("ResultText", resultPanel.transform, "You Win!", new Vector2(0f, 38f), 34, TextAnchor.MiddleCenter);
-        var restartButton = CreateButton("RestartButton", resultPanel.transform, "Restart", new Vector2(0f, -45f), new Vector2(180f, 48f));
+        var resultPanel = CreatePanel("ResultPanel", canvasObject.transform, new Vector2(0f, 0f), new Vector2(380f, 245f));
+        var resultText = CreateText("ResultText", resultPanel.transform, "You Win!", new Vector2(0f, 70f), 32, TextAnchor.MiddleCenter);
+        var nextButton = CreateButton("NextButton", resultPanel.transform, "Next Round", new Vector2(0f, -8f), new Vector2(190f, 46f));
+        var restartButton = CreateButton("RestartButton", resultPanel.transform, "Restart", new Vector2(0f, -70f), new Vector2(190f, 46f));
 
         var scoreUI = canvasObject.AddComponent<ScoreUI>();
         SetReference(scoreUI, "scoreText", scoreText);
+        SetReference(scoreUI, "roundText", roundText);
         SetReference(scoreUI, "resultPanel", resultPanel);
         SetReference(scoreUI, "resultText", resultText);
+        SetReference(scoreUI, "nextButton", nextButton);
         SetReference(scoreUI, "restartButton", restartButton);
 
         return new HudReferences(scoreUI);
@@ -344,6 +372,18 @@ public static class Day1MatchSceneGenerator
             this.player = player;
             this.controller = controller;
             this.serveHoldPoint = serveHoldPoint;
+        }
+    }
+
+    private readonly struct OpponentSetup
+    {
+        public readonly GameObject opponent;
+        public readonly OpponentAI ai;
+
+        public OpponentSetup(GameObject opponent, OpponentAI ai)
+        {
+            this.opponent = opponent;
+            this.ai = ai;
         }
     }
 }

@@ -22,6 +22,19 @@ Unity 2022.3.62f3 기반 2D URP 사이드뷰 테니스/핑퐁 MVP입니다.
 - 공 리셋 구현
 - 점수 UI 텍스트 연결
 
+## Day 3
+
+- `OpponentAI.cs` 생성
+- AI 공 추적 이동 구현
+- AI 스윙 판정 구현
+- Rookie / Dojo / Master 난이도 파라미터 추가
+- `TournamentManager.cs` 생성
+- Round 1, Round 2, Final 구성
+- 승리 시 다음 라운드 이동
+- 패배 시 게임오버
+- 결승 승리 시 우승 화면
+- 바닥 득점 Zone 범위 보정
+
 ## 실행
 
 1. Unity Hub에서 `C:\Users\minil\GameMaking\CatPong`을 엽니다.

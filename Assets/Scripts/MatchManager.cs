@@ -7,8 +7,11 @@ public class MatchManager : MonoBehaviour
     [SerializeField] private BallController ball;
     [SerializeField] private ScoreUI scoreUI;
     [SerializeField] private Transform player;
+    [SerializeField] private Transform opponent;
     [SerializeField] private Transform playerSpawn;
+    [SerializeField] private Transform opponentSpawn;
     [SerializeField] private Transform serveAnchor;
+    [SerializeField] private OpponentAI opponentAI;
 
     private int playerScore;
     private int opponentScore;
@@ -17,6 +20,13 @@ public class MatchManager : MonoBehaviour
 
     private void Start()
     {
+        if (TournamentManager.Instance == null)
+        {
+            new GameObject("TournamentManager").AddComponent<TournamentManager>().StartTournament();
+        }
+
+        opponentAI.Init(ball.transform, GameState.CurrentOpponent);
+
         if (serveAnchor != null)
         {
             ball.SetServeAnchor(serveAnchor);
@@ -85,6 +95,15 @@ public class MatchManager : MonoBehaviour
             }
         }
 
+        if (opponent != null && opponentSpawn != null)
+        {
+            opponent.position = opponentSpawn.position;
+            if (opponent.TryGetComponent(out Rigidbody2D opponentBody))
+            {
+                opponentBody.velocity = Vector2.zero;
+            }
+        }
+
         if (serveAnchor != null)
         {
             ball.SetServeAnchor(serveAnchor);
@@ -96,11 +115,11 @@ public class MatchManager : MonoBehaviour
     private void EndMatch(bool playerWon)
     {
         matchEnded = true;
-        scoreUI.ShowResult(playerWon);
+        scoreUI.ShowResult(playerWon, playerWon && GameState.IsFinalRound);
     }
 
     private void UpdateScoreUI()
     {
-        scoreUI.SetScore(playerScore, opponentScore);
+        scoreUI.SetScore(playerScore, opponentScore, GameState.CurrentOpponent.displayName);
     }
 }
