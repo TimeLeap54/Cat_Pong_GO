@@ -98,8 +98,14 @@ public static class Day1MatchSceneGenerator
         serveHoldPoint.SetParent(player.transform);
         serveHoldPoint.localPosition = new Vector3(0.58f, 0.22f, 0f);
 
+        var groundCheck = new GameObject("GroundCheck").transform;
+        groundCheck.SetParent(player.transform);
+        groundCheck.localPosition = new Vector3(0f, -0.78f, 0f);
+
         var controller = player.AddComponent<PlayerController>();
         SetReference(controller, "swingPoint", swingPoint);
+        SetReference(controller, "groundCheck", groundCheck);
+        SetInt(controller, "groundLayer", LayerMask.GetMask("Default"));
         return new PlayerSetup(player, controller, serveHoldPoint);
     }
 
@@ -348,6 +354,13 @@ public static class Day1MatchSceneGenerator
     {
         var serialized = new SerializedObject(target);
         serialized.FindProperty(fieldName).objectReferenceValue = value;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void SetInt(Object target, string fieldName, int value)
+    {
+        var serialized = new SerializedObject(target);
+        serialized.FindProperty(fieldName).intValue = value;
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 

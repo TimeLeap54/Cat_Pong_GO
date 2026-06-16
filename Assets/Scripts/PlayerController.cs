@@ -14,10 +14,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector2 spikeServeVelocity = new Vector2(11f, -2.2f);
     [SerializeField] private float swingCooldown = 0.22f;
     [SerializeField] private BallController serveBall;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private Vector2 groundCheckSize = new Vector2(0.72f, 0.08f);
+    [SerializeField] private LayerMask groundLayer = ~0;
+    [SerializeField] private float jumpGroundLockout = 0.12f;
 
     private Rigidbody2D body;
     private bool grounded;
     private float nextSwingTime;
+    private float groundCheckLockedUntil;
 
     private void Awake()
     {
@@ -26,6 +31,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        UpdateGrounded();
+
         if (serveBall != null && serveBall.IsHeldForServe)
         {
             var serveAim = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
@@ -36,6 +43,7 @@ public class PlayerController : MonoBehaviour
         {
             body.velocity = new Vector2(body.velocity.x, jumpForce);
             grounded = false;
+            groundCheckLockedUntil = Time.time + jumpGroundLockout;
         }
 
         if ((Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0)) && Time.time >= nextSwingTime)
@@ -81,6 +89,16 @@ public class PlayerController : MonoBehaviour
         return true;
     }
 
+    private void UpdateGrounded()
+    {
+        if (groundCheck == null || Time.time < groundCheckLockedUntil)
+        {
+            return;
+        }
+
+        grounded = Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
+    }
+
     private void Swing(Vector2 velocity)
     {
         nextSwingTime = Time.time + swingCooldown;
@@ -96,30 +114,18 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        if (collision.collider.CompareTag("Ground"))
-        {
-            grounded = true;
-        }
-    }
-
-    private void OnCollisionStay2D(Collision2D collision)
-    {
-        if (collision.collider.CompareTag("Ground"))
-        {
-            grounded = true;
-        }
-    }
-
     private void OnDrawGizmosSelected()
     {
-        if (swingPoint == null)
+        if (swingPoint != null)
         {
-            return;
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(swingPoint.position, swingRadius);
         }
 
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(swingPoint.position, swingRadius);
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireCube(groundCheck.position, groundCheckSize);
+        }
     }
 }

@@ -13,7 +13,12 @@ public class GoalZone : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (!other.TryGetComponent(out BallController _))
+        if (!other.TryGetComponent(out BallController ball))
+        {
+            return;
+        }
+
+        if (ball.IsHeldForServe)
         {
             return;
         }
@@ -28,4 +33,3 @@ public class GoalZone : MonoBehaviour
         }
     }
 }
-

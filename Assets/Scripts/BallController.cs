@@ -5,7 +5,7 @@ public class BallController : MonoBehaviour
 {
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private Vector2 serveOffset = new Vector2(0.85f, 0.45f);
-    [SerializeField] private Vector2 minServeOffset = new Vector2(0.45f, -0.25f);
+    [SerializeField] private Vector2 minServeOffset = new Vector2(0.45f, 0.05f);
     [SerializeField] private Vector2 maxServeOffset = new Vector2(1.45f, 1.35f);
     [SerializeField] private float serveAimSpeed = 1.7f;
 
