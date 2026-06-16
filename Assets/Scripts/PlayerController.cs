@@ -8,8 +8,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
-    [SerializeField] private float swingRadius = 1.55f;
-    [SerializeField] private float swingPower = 12f;
+    [SerializeField] private Vector2 swingBoxSize = new Vector2(1.9f, 2.35f);
+    [SerializeField] private float liftSwingPower = 9.8f;
+    [SerializeField] private float spikeSwingPower = 12f;
     [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
     [SerializeField] private Vector2 spikeServeVelocity = new Vector2(10.2f, -1.6f);
     [SerializeField] private float minServePowerMultiplier = 0.78f;
@@ -38,11 +39,6 @@ public class PlayerController : MonoBehaviour
 
     private void UpgradeSerializedDefaults()
     {
-        if (Mathf.Approximately(swingRadius, 1.05f))
-        {
-            swingRadius = 1.55f;
-        }
-
         if (Approximately(upwardServeVelocity, new Vector2(9.5f, 6.4f)))
         {
             upwardServeVelocity = new Vector2(8.6f, 5.8f);
@@ -79,7 +75,7 @@ public class PlayerController : MonoBehaviour
 
             if (Time.time >= nextSwingTime)
             {
-                Swing(new Vector2(1f, 0.72f).normalized * swingPower);
+                Swing(new Vector2(1f, 0.72f).normalized * liftSwingPower);
             }
         }
 
@@ -92,7 +88,7 @@ public class PlayerController : MonoBehaviour
 
             if (Time.time >= nextSwingTime)
             {
-                Swing(new Vector2(1f, -0.25f).normalized * swingPower);
+                Swing(new Vector2(1f, -0.25f).normalized * spikeSwingPower);
             }
         }
 
@@ -154,7 +150,7 @@ public class PlayerController : MonoBehaviour
     {
         nextSwingTime = Time.time + swingCooldown;
 
-        var hits = Physics2D.OverlapCircleAll(swingPoint.position, swingRadius);
+        var hits = Physics2D.OverlapBoxAll(swingPoint.position, swingBoxSize, 0f);
         foreach (var hit in hits)
         {
             if (hit.TryGetComponent(out BallController ball))
@@ -170,7 +166,7 @@ public class PlayerController : MonoBehaviour
         if (swingPoint != null)
         {
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(swingPoint.position, swingRadius);
+            Gizmos.DrawWireCube(swingPoint.position, swingBoxSize);
         }
 
         if (groundCheck != null)

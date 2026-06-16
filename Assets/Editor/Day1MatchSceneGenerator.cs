@@ -43,8 +43,8 @@ public static class Day1MatchSceneGenerator
         var canvas = CreateHud();
         ConnectServeReferences(playerSetup.controller, ball, playerSetup.serveHoldPoint);
         var matchManager = CreateMatchManager(playerSetup, opponentSetup, playerSpawn, opponentSpawn, ball, canvas.scoreUI);
-        CreateGoalZone("LeftScoreZone", new Vector2(-5.05f, -1.2f), new Vector2(10.1f, 2.2f), true, matchManager);
-        CreateGoalZone("RightScoreZone", new Vector2(5.05f, -1.2f), new Vector2(10.1f, 2.2f), false, matchManager);
+        CreateGoalZone("LeftScoreZone", new Vector2(-4.3f, -0.86f), new Vector2(8.6f, 0.22f), true, matchManager);
+        CreateGoalZone("RightScoreZone", new Vector2(4.3f, -0.86f), new Vector2(8.6f, 0.22f), false, matchManager);
 
         EditorSceneManager.SaveScene(scene, $"{ScenesPath}/Match.unity");
         EditorBuildSettings.scenes = new[]
@@ -80,7 +80,11 @@ public static class Day1MatchSceneGenerator
 
     private static void CreateCourt()
     {
-        CreateBox("Court", new Vector2(0f, -1.1f), new Vector2(18f, 0.32f), new Color(0.18f, 0.48f, 0.34f), true, "Ground");
+        CreateBox("GroundBase", new Vector2(0f, -1.35f), new Vector2(24f, 0.7f), new Color(0.12f, 0.34f, 0.27f), true, "Ground");
+        CreateBox("CourtInBounds", new Vector2(0f, -0.96f), new Vector2(17.2f, 0.12f), new Color(0.18f, 0.56f, 0.36f), false);
+        CreateBox("LeftOutLine", new Vector2(-8.6f, -0.84f), new Vector2(0.08f, 0.42f), new Color(0.96f, 0.96f, 0.86f), false);
+        CreateBox("RightOutLine", new Vector2(8.6f, -0.84f), new Vector2(0.08f, 0.42f), new Color(0.96f, 0.96f, 0.86f), false);
+        CreateBox("CenterCourtLine", new Vector2(0f, -0.84f), new Vector2(0.05f, 0.32f), new Color(0.9f, 0.9f, 0.82f), false);
         CreateBox("Net", new Vector2(0f, 0.05f), new Vector2(0.14f, 2.3f), new Color(0.96f, 0.96f, 0.9f), true, "Net");
         CreateBoundary("BoundaryTop", new Vector2(0f, 5.7f), new Vector2(20f, 0.25f));
         CreateBoundary("BoundaryLeft", new Vector2(-10.6f, 2.2f), new Vector2(0.25f, 7f));
