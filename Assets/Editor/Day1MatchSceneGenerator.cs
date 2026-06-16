@@ -100,7 +100,7 @@ public static class Day1MatchSceneGenerator
 
         var swingPoint = new GameObject("SwingPoint").transform;
         swingPoint.SetParent(player.transform);
-        swingPoint.localPosition = new Vector3(0.88f, 0.18f, 0f);
+        swingPoint.localPosition = new Vector3(0.62f, 0.32f, 0f);
 
         var serveHoldPoint = new GameObject("ServeHoldPoint").transform;
         serveHoldPoint.SetParent(player.transform);

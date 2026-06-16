@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
-    [SerializeField] private Vector2 swingBoxSize = new Vector2(1.9f, 2.35f);
+    [SerializeField] private Vector2 swingBoxSize = new Vector2(2.75f, 2.95f);
     [SerializeField] private float liftSwingPower = 9.8f;
     [SerializeField] private float spikeSwingPower = 12f;
     [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
@@ -52,6 +52,11 @@ public class PlayerController : MonoBehaviour
         if (swingPoint != null && Approximately((Vector2)swingPoint.localPosition, new Vector2(0.72f, 0.3f)))
         {
             swingPoint.localPosition = new Vector3(0.88f, 0.18f, 0f);
+        }
+
+        if (swingPoint != null && Approximately((Vector2)swingPoint.localPosition, new Vector2(0.88f, 0.18f)))
+        {
+            swingPoint.localPosition = new Vector3(0.62f, 0.32f, 0f);
         }
     }
 
@@ -143,7 +148,17 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        grounded = Physics2D.OverlapBox(groundCheck.position, groundCheckSize, 0f, groundLayer);
+        grounded = false;
+
+        var hits = Physics2D.OverlapBoxAll(groundCheck.position, groundCheckSize, 0f, groundLayer);
+        foreach (var hit in hits)
+        {
+            if (!hit.isTrigger && hit.CompareTag("Ground"))
+            {
+                grounded = true;
+                return;
+            }
+        }
     }
 
     private void Swing(Vector2 velocity)

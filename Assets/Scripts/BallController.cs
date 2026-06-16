@@ -7,6 +7,7 @@ public class BallController : MonoBehaviour
     [SerializeField] private Vector2 serveOffset = new Vector2(0.28f, 0.08f);
 
     private Rigidbody2D body;
+    private Collider2D ballCollider;
     private Vector3 startPosition;
     private RigidbodyType2D defaultBodyType;
     private float defaultGravityScale;
@@ -18,6 +19,7 @@ public class BallController : MonoBehaviour
     {
         UpgradeSerializedDefaults();
         body = GetComponent<Rigidbody2D>();
+        ballCollider = GetComponent<Collider2D>();
         startPosition = transform.position;
         defaultBodyType = body.bodyType;
         defaultGravityScale = body.gravityScale;
@@ -72,6 +74,7 @@ public class BallController : MonoBehaviour
         body.gravityScale = 0f;
         body.velocity = Vector2.zero;
         body.angularVelocity = 0f;
+        SetColliderEnabled(false);
 
         if (serveAnchor == null)
         {
@@ -87,6 +90,7 @@ public class BallController : MonoBehaviour
         IsHeldForServe = false;
         body.bodyType = defaultBodyType;
         body.gravityScale = defaultGravityScale;
+        SetColliderEnabled(true);
         Hit(velocity);
     }
 
@@ -95,11 +99,20 @@ public class BallController : MonoBehaviour
         IsHeldForServe = false;
         body.bodyType = defaultBodyType;
         body.gravityScale = defaultGravityScale;
+        SetColliderEnabled(true);
         body.velocity = velocity;
     }
 
     private static bool Approximately(Vector2 a, Vector2 b)
     {
         return Mathf.Abs(a.x - b.x) < 0.01f && Mathf.Abs(a.y - b.y) < 0.01f;
+    }
+
+    private void SetColliderEnabled(bool enabled)
+    {
+        if (ballCollider != null)
+        {
+            ballCollider.enabled = enabled;
+        }
     }
 }
