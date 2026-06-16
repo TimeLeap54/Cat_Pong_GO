@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEditorInternal;
+using UnityEngine.UI;
 
 public static class Day1MatchSceneGenerator
 {
@@ -14,7 +15,7 @@ public static class Day1MatchSceneGenerator
     private static Sprite squareSprite;
     private static Sprite circleSprite;
 
-    [MenuItem("Tools/CatPong/Generate Day 1 Match Scene")]
+    [MenuItem("Tools/CatPong/Generate Match Scene")]
     public static void Generate()
     {
         Directory.CreateDirectory(ScenesPath);
@@ -28,9 +29,14 @@ public static class Day1MatchSceneGenerator
 
         CreateCamera();
         CreateCourt();
-        CreatePlayer();
+        var player = CreatePlayer();
         CreateOpponent();
-        CreateBall();
+        var ball = CreateBall();
+        var playerSpawn = CreateMarker("PlayerSpawn", new Vector2(-5.5f, -0.2f));
+        var canvas = CreateHud();
+        var matchManager = CreateMatchManager(player, playerSpawn, ball, canvas.scoreUI);
+        CreateGoalZone("LeftScoreZone", new Vector2(-4.5f, -0.88f), new Vector2(8.8f, 0.38f), true, matchManager);
+        CreateGoalZone("RightScoreZone", new Vector2(4.5f, -0.88f), new Vector2(8.8f, 0.38f), false, matchManager);
 
         EditorSceneManager.SaveScene(scene, $"{ScenesPath}/Match.unity");
         EditorBuildSettings.scenes = new[]
@@ -40,7 +46,7 @@ public static class Day1MatchSceneGenerator
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        EditorUtility.DisplayDialog("CatPong", "Day 1 Match scene generated at Assets/Scenes/Match.unity", "OK");
+        EditorUtility.DisplayDialog("CatPong", "Match scene generated at Assets/Scenes/Match.unity", "OK");
     }
 
     private static void EnsureProjectIs2DURP()
@@ -72,12 +78,18 @@ public static class Day1MatchSceneGenerator
         CreateBoundary("BoundaryRight", new Vector2(10.6f, 2.2f), new Vector2(0.25f, 7f));
     }
 
-    private static void CreatePlayer()
+    private static GameObject CreatePlayer()
     {
         var player = CreateBox("Player", new Vector2(-5.5f, -0.2f), new Vector2(0.9f, 1.45f), new Color(1f, 0.62f, 0.28f), true);
         var body = player.AddComponent<Rigidbody2D>();
         body.freezeRotation = true;
-        player.AddComponent<PlayerController>();
+        var swingPoint = new GameObject("SwingPoint").transform;
+        swingPoint.SetParent(player.transform);
+        swingPoint.localPosition = new Vector3(0.72f, 0.3f, 0f);
+
+        var controller = player.AddComponent<PlayerController>();
+        SetReference(controller, "swingPoint", swingPoint);
+        return player;
     }
 
     private static void CreateOpponent()
@@ -88,7 +100,7 @@ public static class Day1MatchSceneGenerator
         body.bodyType = RigidbodyType2D.Kinematic;
     }
 
-    private static void CreateBall()
+    private static BallController CreateBall()
     {
         var ball = new GameObject("Ball");
         ball.transform.position = new Vector3(-2.5f, 1.5f, 0f);
@@ -103,7 +115,7 @@ public static class Day1MatchSceneGenerator
         body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
         ball.AddComponent<CircleCollider2D>();
-        ball.AddComponent<BallController>();
+        return ball.AddComponent<BallController>();
     }
 
     private static GameObject CreateBox(string name, Vector2 position, Vector2 size, Color color, bool collider, string tag = null)
@@ -128,6 +140,104 @@ public static class Day1MatchSceneGenerator
         }
 
         return obj;
+    }
+
+    private static GameObject CreateMarker(string name, Vector2 position)
+    {
+        var marker = new GameObject(name);
+        marker.transform.position = new Vector3(position.x, position.y, 0f);
+        return marker;
+    }
+
+    private static void CreateGoalZone(string name, Vector2 position, Vector2 size, bool playerSide, MatchManager matchManager)
+    {
+        var zone = new GameObject(name);
+        zone.transform.position = new Vector3(position.x, position.y, 0f);
+        var collider = zone.AddComponent<BoxCollider2D>();
+        collider.size = size;
+        collider.isTrigger = true;
+        var goalZone = zone.AddComponent<GoalZone>();
+        goalZone.Init(matchManager, playerSide);
+    }
+
+    private static MatchManager CreateMatchManager(GameObject player, GameObject playerSpawn, BallController ball, ScoreUI scoreUI)
+    {
+        var obj = new GameObject("MatchManager");
+        var manager = obj.AddComponent<MatchManager>();
+        SetReference(manager, "ball", ball);
+        SetReference(manager, "scoreUI", scoreUI);
+        SetReference(manager, "player", player.transform);
+        SetReference(manager, "playerSpawn", playerSpawn.transform);
+        return manager;
+    }
+
+    private static HudReferences CreateHud()
+    {
+        var canvasObject = new GameObject("Canvas");
+        var canvas = canvasObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvasObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        canvasObject.AddComponent<GraphicRaycaster>();
+
+        var eventSystem = new GameObject("EventSystem");
+        eventSystem.AddComponent<UnityEngine.EventSystems.EventSystem>();
+        eventSystem.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+
+        var scoreText = CreateText("ScoreText", canvasObject.transform, "0 : 0", new Vector2(0f, -45f), 42, TextAnchor.MiddleCenter);
+        scoreText.rectTransform.anchorMin = new Vector2(0.5f, 1f);
+        scoreText.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+
+        var resultPanel = CreatePanel("ResultPanel", canvasObject.transform, new Vector2(0f, 0f), new Vector2(360f, 190f));
+        var resultText = CreateText("ResultText", resultPanel.transform, "You Win!", new Vector2(0f, 38f), 34, TextAnchor.MiddleCenter);
+        var restartButton = CreateButton("RestartButton", resultPanel.transform, "Restart", new Vector2(0f, -45f), new Vector2(180f, 48f));
+
+        var scoreUI = canvasObject.AddComponent<ScoreUI>();
+        SetReference(scoreUI, "scoreText", scoreText);
+        SetReference(scoreUI, "resultPanel", resultPanel);
+        SetReference(scoreUI, "resultText", resultText);
+        SetReference(scoreUI, "restartButton", restartButton);
+
+        return new HudReferences(scoreUI);
+    }
+
+    private static Text CreateText(string name, Transform parent, string text, Vector2 position, int fontSize, TextAnchor anchor)
+    {
+        var obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        var uiText = obj.AddComponent<Text>();
+        uiText.text = text;
+        uiText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        uiText.fontSize = fontSize;
+        uiText.color = Color.white;
+        uiText.alignment = anchor;
+        uiText.rectTransform.anchoredPosition = position;
+        uiText.rectTransform.sizeDelta = new Vector2(460f, 70f);
+        return uiText;
+    }
+
+    private static GameObject CreatePanel(string name, Transform parent, Vector2 position, Vector2 size)
+    {
+        var obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        var image = obj.AddComponent<Image>();
+        image.color = new Color(0f, 0f, 0f, 0.66f);
+        image.rectTransform.anchoredPosition = position;
+        image.rectTransform.sizeDelta = size;
+        return obj;
+    }
+
+    private static Button CreateButton(string name, Transform parent, string label, Vector2 position, Vector2 size)
+    {
+        var obj = CreatePanel(name, parent, position, size);
+        var image = obj.GetComponent<Image>();
+        image.color = new Color(1f, 1f, 1f, 0.92f);
+        var button = obj.AddComponent<Button>();
+        button.targetGraphic = image;
+
+        var text = CreateText("Text", obj.transform, label, Vector2.zero, 22, TextAnchor.MiddleCenter);
+        text.color = Color.black;
+        text.rectTransform.sizeDelta = size;
+        return button;
     }
 
     private static GameObject CreateBoundary(string name, Vector2 position, Vector2 size)
@@ -186,5 +296,22 @@ public static class Day1MatchSceneGenerator
         }
 
         InternalEditorUtility.AddTag(tag);
+    }
+
+    private static void SetReference(Object target, string fieldName, Object value)
+    {
+        var serialized = new SerializedObject(target);
+        serialized.FindProperty(fieldName).objectReferenceValue = value;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private readonly struct HudReferences
+    {
+        public readonly ScoreUI scoreUI;
+
+        public HudReferences(ScoreUI scoreUI)
+        {
+            this.scoreUI = scoreUI;
+        }
     }
 }
