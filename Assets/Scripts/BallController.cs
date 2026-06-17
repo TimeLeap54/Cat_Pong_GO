@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -23,6 +24,7 @@ public class BallController : MonoBehaviour
     private bool groundTouchPending;
     private Vector2 pendingGroundTouchPosition;
     private bool sideWallTouchPending;
+    private readonly List<Collider2D> ignoredBodyColliders = new List<Collider2D>();
 
     public bool IsHeldForServe { get; private set; }
     public Vector2 Velocity => body.velocity;
@@ -101,6 +103,21 @@ public class BallController : MonoBehaviour
     {
         serveAnchor = anchor;
         BeginServe();
+    }
+
+    public void IgnoreBodyCollision(Collider2D bodyCollider)
+    {
+        if (ballCollider == null || bodyCollider == null)
+        {
+            return;
+        }
+
+        if (!ignoredBodyColliders.Contains(bodyCollider))
+        {
+            ignoredBodyColliders.Add(bodyCollider);
+        }
+
+        Physics2D.IgnoreCollision(ballCollider, bodyCollider, true);
     }
 
     public void BeginServe()
@@ -199,6 +216,23 @@ public class BallController : MonoBehaviour
         if (ballCollider != null)
         {
             ballCollider.enabled = enabled;
+            ApplyIgnoredBodyCollisions();
+        }
+    }
+
+    private void ApplyIgnoredBodyCollisions()
+    {
+        if (ballCollider == null)
+        {
+            return;
+        }
+
+        foreach (var ignoredCollider in ignoredBodyColliders)
+        {
+            if (ignoredCollider != null)
+            {
+                Physics2D.IgnoreCollision(ballCollider, ignoredCollider, true);
+            }
         }
     }
 

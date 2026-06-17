@@ -39,6 +39,11 @@ public class OpponentAI : MonoBehaviour
     {
         ball = ballTransform;
         ballController = ballTransform.GetComponent<BallController>();
+        if (ballController != null && TryGetComponent(out Collider2D opponentCollider))
+        {
+            ballController.IgnoreBodyCollision(opponentCollider);
+        }
+
         profile = opponentProfile;
         targetX = homeX;
         StopAllCoroutines();

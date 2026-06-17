@@ -8,13 +8,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
-    [SerializeField] private Vector2 swingBoxSize = new Vector2(2.75f, 2.95f);
+    [SerializeField] private Vector2 swingBoxSize = new Vector2(3.15f, 3.35f);
     [SerializeField] private Vector2 spikeSwingOffset = new Vector2(0.12f, 0.72f);
     [SerializeField] private Vector2 spikeSwingBoxSize = new Vector2(2.45f, 2.2f);
     [SerializeField] private Vector2 dropSwingDirection = new Vector2(1f, 0.86f);
     [SerializeField] private Vector2 normalLiftSwingDirection = new Vector2(1f, 0.72f);
     [SerializeField] private Vector2 strongLiftSwingDirection = new Vector2(1f, 0.56f);
-    [SerializeField] private float dropTapTime = 0.13f;
+    [SerializeField] private float dropTapTime = 0.08f;
     [SerializeField] private float strongHoldTime = 0.45f;
     [SerializeField] private float dropSwingPower = 6.1f;
     [SerializeField] private float liftSwingPower = 9.8f;
@@ -51,6 +51,14 @@ public class PlayerController : MonoBehaviour
         jumpsRemaining = maxJumpCount;
     }
 
+    private void Start()
+    {
+        if (serveBall != null && TryGetComponent(out Collider2D playerCollider))
+        {
+            serveBall.IgnoreBodyCollision(playerCollider);
+        }
+    }
+
     private void UpgradeSerializedDefaults()
     {
         if (Mathf.Approximately(jumpForce, 6.6f))
@@ -71,6 +79,16 @@ public class PlayerController : MonoBehaviour
         if (Approximately(spikeServeVelocity, new Vector2(10.2f, -1.6f)))
         {
             spikeServeVelocity = new Vector2(10.4f, -0.65f);
+        }
+
+        if (Approximately(swingBoxSize, new Vector2(2.75f, 2.95f)))
+        {
+            swingBoxSize = new Vector2(3.15f, 3.35f);
+        }
+
+        if (Mathf.Approximately(dropTapTime, 0.13f))
+        {
+            dropTapTime = 0.08f;
         }
 
         if (swingPoint != null && Approximately((Vector2)swingPoint.localPosition, new Vector2(0.72f, 0.3f)))
