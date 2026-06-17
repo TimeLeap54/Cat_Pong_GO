@@ -12,12 +12,19 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private float homeX = 5.7f;
     [SerializeField] private float predictionTime = 0.38f;
     [SerializeField] private float chaseBehindPadding = 0.75f;
+    [SerializeField] private float behindChaseSpeedMultiplier = 1.75f;
+    [SerializeField] private float emergencyThinkDistance = 0.35f;
+    [SerializeField] private float jumpForce = 6.2f;
+    [SerializeField] private float jumpCooldown = 0.45f;
+    [SerializeField] private float overheadJumpHeight = 1.15f;
 
     private Rigidbody2D body;
     private OpponentProfile profile;
     private BallController ballController;
     private float targetX;
     private float nextSwingTime;
+    private float nextJumpTime;
+    private bool grounded;
 
     private void Awake()
     {
@@ -83,8 +90,11 @@ public class OpponentAI : MonoBehaviour
             return;
         }
 
+        UpdateEmergencyChaseTarget();
+
         var delta = targetX - body.position.x;
-        var speed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed : 0f;
+        var speedMultiplier = IsBallBehind() ? behindChaseSpeedMultiplier : 1f;
+        var speed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed * speedMultiplier : 0f;
         body.velocity = new Vector2(speed, body.velocity.y);
 
         var position = body.position;
@@ -94,7 +104,14 @@ public class OpponentAI : MonoBehaviour
 
     private void Update()
     {
-        if (profile == null || Time.time < nextSwingTime)
+        if (profile == null)
+        {
+            return;
+        }
+
+        TryJumpForOverheadBall();
+
+        if (Time.time < nextSwingTime)
         {
             return;
         }
@@ -116,6 +133,64 @@ public class OpponentAI : MonoBehaviour
                 nextSwingTime = Time.time + 0.28f;
                 break;
             }
+        }
+    }
+
+    private void UpdateEmergencyChaseTarget()
+    {
+        if (ball == null || ballController == null || ballController.IsHeldForServe)
+        {
+            return;
+        }
+
+        var ballPosition = ball.position;
+        if (ballPosition.x <= 0f)
+        {
+            return;
+        }
+
+        if (IsBallBehind() || Mathf.Abs(ballPosition.x - body.position.x) <= emergencyThinkDistance)
+        {
+            targetX = Mathf.Clamp(ballPosition.x, courtMinX, courtMaxX);
+        }
+    }
+
+    private bool IsBallBehind()
+    {
+        return ball != null && ball.position.x > body.position.x + chaseBehindPadding;
+    }
+
+    private void TryJumpForOverheadBall()
+    {
+        if (!grounded || Time.time < nextJumpTime || ball == null || ballController == null || ballController.IsHeldForServe)
+        {
+            return;
+        }
+
+        var ballPosition = ball.position;
+        var ballIsReachableHorizontally = Mathf.Abs(ballPosition.x - body.position.x) < 1.35f;
+        var ballIsOverhead = ballPosition.y > swingPoint.position.y + overheadJumpHeight;
+        if (ballPosition.x > 0f && ballIsReachableHorizontally && ballIsOverhead)
+        {
+            body.velocity = new Vector2(body.velocity.x, jumpForce);
+            grounded = false;
+            nextJumpTime = Time.time + jumpCooldown;
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.collider.CompareTag("Ground"))
+        {
+            grounded = true;
+        }
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (collision.collider.CompareTag("Ground"))
+        {
+            grounded = true;
         }
     }
 

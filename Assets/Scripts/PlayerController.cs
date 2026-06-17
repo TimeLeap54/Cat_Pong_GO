@@ -14,7 +14,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float liftSwingPower = 9.8f;
     [SerializeField] private float spikeSwingPower = 12f;
     [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
-    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(10.2f, -1.6f);
+    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(10.4f, -0.65f);
     [SerializeField] private float minServePowerMultiplier = 0.78f;
     [SerializeField] private float maxServePowerMultiplier = 1.35f;
     [SerializeField] private float fullChargeTime = 0.9f;
@@ -56,7 +56,12 @@ public class PlayerController : MonoBehaviour
 
         if (Approximately(spikeServeVelocity, new Vector2(11f, -2.2f)))
         {
-            spikeServeVelocity = new Vector2(10.2f, -1.6f);
+            spikeServeVelocity = new Vector2(10.4f, -0.65f);
+        }
+
+        if (Approximately(spikeServeVelocity, new Vector2(10.2f, -1.6f)))
+        {
+            spikeServeVelocity = new Vector2(10.4f, -0.65f);
         }
 
         if (swingPoint != null && Approximately((Vector2)swingPoint.localPosition, new Vector2(0.72f, 0.3f)))
@@ -104,7 +109,7 @@ public class PlayerController : MonoBehaviour
 
             if (Time.time >= nextSwingTime)
             {
-                Swing(new Vector2(1f, -0.25f).normalized * spikeSwingPower, spikeSwingOffset, spikeSwingBoxSize);
+                Swing(new Vector2(1f, -0.08f).normalized * spikeSwingPower, spikeSwingOffset, spikeSwingBoxSize);
             }
         }
 
