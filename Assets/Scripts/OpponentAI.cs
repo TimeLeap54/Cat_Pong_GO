@@ -11,6 +11,7 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private float courtMaxX = 8.2f;
     [SerializeField] private float homeX = 5.7f;
     [SerializeField] private float predictionTime = 0.38f;
+    [SerializeField] private float chaseBehindPadding = 0.75f;
 
     private Rigidbody2D body;
     private OpponentProfile profile;
@@ -53,15 +54,24 @@ public class OpponentAI : MonoBehaviour
 
             var ballPosition = ball.position;
             var ballVelocity = ballController.Velocity;
-            var ballIsComing = ballPosition.x > 0f || ballVelocity.x > 0.4f;
-            if (!ballIsComing)
+            var ballInOpponentCourt = ballPosition.x > 0f;
+            var ballIsComing = ballVelocity.x > 0.4f;
+            if (!ballInOpponentCourt && !ballIsComing)
             {
                 targetX = homeX;
                 continue;
             }
 
             var mistakeOffset = Random.value < profile.mistakeRate ? Random.Range(-2.4f, 2.4f) : Random.Range(-0.45f, 0.45f);
-            var predictedX = ballPosition.x + ballVelocity.x * predictionTime;
+            var predictedX = ballInOpponentCourt
+                ? ballPosition.x + ballVelocity.x * predictionTime
+                : ballPosition.x + ballVelocity.x * predictionTime * 0.5f;
+
+            if (ballPosition.x > body.position.x + chaseBehindPadding)
+            {
+                predictedX = Mathf.Max(predictedX, ballPosition.x);
+            }
+
             targetX = Mathf.Clamp(predictedX + mistakeOffset, courtMinX, courtMaxX);
         }
     }

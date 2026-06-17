@@ -9,6 +9,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxX = -0.8f;
     [SerializeField] private Transform swingPoint;
     [SerializeField] private Vector2 swingBoxSize = new Vector2(2.75f, 2.95f);
+    [SerializeField] private Vector2 spikeSwingOffset = new Vector2(0.12f, 0.72f);
+    [SerializeField] private Vector2 spikeSwingBoxSize = new Vector2(2.45f, 2.2f);
     [SerializeField] private float liftSwingPower = 9.8f;
     [SerializeField] private float spikeSwingPower = 12f;
     [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
@@ -102,7 +104,7 @@ public class PlayerController : MonoBehaviour
 
             if (Time.time >= nextSwingTime)
             {
-                Swing(new Vector2(1f, -0.25f).normalized * spikeSwingPower);
+                Swing(new Vector2(1f, -0.25f).normalized * spikeSwingPower, spikeSwingOffset, spikeSwingBoxSize);
             }
         }
 
@@ -173,9 +175,15 @@ public class PlayerController : MonoBehaviour
 
     private void Swing(Vector2 velocity)
     {
+        Swing(velocity, Vector2.zero, swingBoxSize);
+    }
+
+    private void Swing(Vector2 velocity, Vector2 pointOffset, Vector2 boxSize)
+    {
         nextSwingTime = Time.time + swingCooldown;
 
-        var hits = Physics2D.OverlapBoxAll(swingPoint.position, swingBoxSize, 0f);
+        var swingCenter = (Vector2)swingPoint.position + pointOffset;
+        var hits = Physics2D.OverlapBoxAll(swingCenter, boxSize, 0f);
         foreach (var hit in hits)
         {
             if (hit.TryGetComponent(out BallController ball))
@@ -192,6 +200,8 @@ public class PlayerController : MonoBehaviour
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(swingPoint.position, swingBoxSize);
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireCube((Vector2)swingPoint.position + spikeSwingOffset, spikeSwingBoxSize);
         }
 
         if (groundCheck != null)
