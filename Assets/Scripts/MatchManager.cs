@@ -216,6 +216,7 @@ public class MatchManager : MonoBehaviour
     private void EndMatch(bool playerWon)
     {
         matchEnded = true;
+        Debug.Log($"Balance result - {GameState.CurrentOpponent.displayName}: Player {playerScore} / AI {opponentScore}, diff {playerScore - opponentScore}");
         scoreUI.ShowResult(playerWon, playerWon && GameState.IsFinalRound);
     }
 
