@@ -152,6 +152,7 @@ public static class Day6PolishGenerator
         CreateText("SubtitleText", canvasObject.transform, "First to 5 points. Win 3 rounds.", new Vector2(0f, 104f), new Vector2(620f, 52f), 24, TextAnchor.MiddleCenter, new Color(0.92f, 1f, 0.96f));
         var startButton = CreateButton("StartButton", canvasObject.transform, "Start Tournament", new Vector2(0f, -16f), new Vector2(280f, 58f), startButtonSprite);
         var menu = canvasObject.GetComponent<MainMenuUI>();
+        SetReference(menu, "startButton", startButton);
         startButton.onClick.AddListener(menu.StartGame);
         CreateText("ControlsText", canvasObject.transform, "Move A/D  |  Jump Space  |  J tap drop / hold rally  |  K smash", new Vector2(0f, -124f), new Vector2(820f, 56f), 20, TextAnchor.MiddleCenter, Color.white);
     }
