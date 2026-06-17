@@ -11,7 +11,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector2 swingBoxSize = new Vector2(2.75f, 2.95f);
     [SerializeField] private Vector2 spikeSwingOffset = new Vector2(0.12f, 0.72f);
     [SerializeField] private Vector2 spikeSwingBoxSize = new Vector2(2.45f, 2.2f);
+    [SerializeField] private Vector2 dropSwingDirection = new Vector2(1f, 0.86f);
+    [SerializeField] private Vector2 normalLiftSwingDirection = new Vector2(1f, 0.72f);
+    [SerializeField] private Vector2 strongLiftSwingDirection = new Vector2(1f, 0.56f);
+    [SerializeField] private float dropTapTime = 0.13f;
+    [SerializeField] private float strongHoldTime = 0.45f;
+    [SerializeField] private float dropSwingPower = 6.1f;
     [SerializeField] private float liftSwingPower = 9.8f;
+    [SerializeField] private float strongLiftSwingPower = 11.2f;
     [SerializeField] private float spikeSwingPower = 12f;
     [SerializeField] private Vector2 upwardServeVelocity = new Vector2(8.6f, 5.8f);
     [SerializeField] private Vector2 spikeServeVelocity = new Vector2(10.4f, -0.65f);
@@ -32,7 +39,9 @@ public class PlayerController : MonoBehaviour
     private float nextSwingTime;
     private float groundCheckLockedUntil;
     private bool chargingServe;
+    private bool chargingLiftSwing;
     private float serveChargeStartedAt;
+    private float liftSwingStartedAt;
     private Vector2 chargedServeVelocity;
 
     private void Awake()
@@ -94,10 +103,7 @@ public class PlayerController : MonoBehaviour
                 return;
             }
 
-            if (Time.time >= nextSwingTime)
-            {
-                Swing(new Vector2(1f, 0.72f).normalized * liftSwingPower);
-            }
+            TryStartLiftSwingCharge();
         }
 
         if (Input.GetKeyDown(KeyCode.K))
@@ -113,7 +119,13 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyUp(KeyCode.J) || Input.GetMouseButtonUp(0) || Input.GetKeyUp(KeyCode.K))
+        if (Input.GetKeyUp(KeyCode.J) || Input.GetMouseButtonUp(0))
+        {
+            CompleteLiftSwingCharge();
+            CompleteServeCharge();
+        }
+
+        if (Input.GetKeyUp(KeyCode.K))
         {
             CompleteServeCharge();
         }
@@ -155,6 +167,48 @@ public class PlayerController : MonoBehaviour
         nextSwingTime = Time.time + swingCooldown;
         serveBall.LaunchServe(chargedServeVelocity * powerMultiplier);
         chargingServe = false;
+    }
+
+    private void TryStartLiftSwingCharge()
+    {
+        if (Time.time < nextSwingTime)
+        {
+            return;
+        }
+
+        chargingLiftSwing = true;
+        liftSwingStartedAt = Time.time;
+    }
+
+    private void CompleteLiftSwingCharge()
+    {
+        if (!chargingLiftSwing || serveBall != null && serveBall.IsHeldForServe)
+        {
+            chargingLiftSwing = false;
+            return;
+        }
+
+        var holdTime = Time.time - liftSwingStartedAt;
+        chargingLiftSwing = false;
+
+        if (Time.time < nextSwingTime)
+        {
+            return;
+        }
+
+        if (holdTime <= dropTapTime)
+        {
+            Swing(dropSwingDirection.normalized * dropSwingPower);
+            return;
+        }
+
+        if (holdTime >= strongHoldTime)
+        {
+            Swing(strongLiftSwingDirection.normalized * strongLiftSwingPower);
+            return;
+        }
+
+        Swing(normalLiftSwingDirection.normalized * liftSwingPower);
     }
 
     private void UpdateGrounded()
