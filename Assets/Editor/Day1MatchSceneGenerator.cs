@@ -54,7 +54,10 @@ public static class Day1MatchSceneGenerator
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        EditorUtility.DisplayDialog("CatPong", "Match scene generated at Assets/Scenes/Match.unity", "OK");
+        if (!Application.isBatchMode)
+        {
+            EditorUtility.DisplayDialog("CatPong", "Match scene generated at Assets/Scenes/Match.unity", "OK");
+        }
     }
 
     private static void EnsureProjectIs2DURP()

@@ -41,11 +41,21 @@ public class ScoreUI : MonoBehaviour
 
     private void NextRound()
     {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayButton();
+        }
+
         TournamentManager.Instance.ContinueAfterWin();
     }
 
     private void Restart()
     {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayButton();
+        }
+
         TournamentManager.Instance.RestartTournament();
     }
 }

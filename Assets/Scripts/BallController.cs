@@ -169,6 +169,10 @@ public class BallController : MonoBehaviour
         }
 
         body.velocity = SanitizeVelocity(velocity);
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayHit();
+        }
     }
 
     public bool ConsumeGroundTouch(out Vector2 position)

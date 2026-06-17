@@ -161,6 +161,11 @@ public class MatchManager : MonoBehaviour
     private void ResolvePoint()
     {
         pointResolving = true;
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayScore();
+        }
+
         UpdateScoreUI();
 
         if (playerScore >= pointsToWin)
@@ -217,6 +222,18 @@ public class MatchManager : MonoBehaviour
     {
         matchEnded = true;
         Debug.Log($"Balance result - {GameState.CurrentOpponent.displayName}: Player {playerScore} / AI {opponentScore}, diff {playerScore - opponentScore}");
+        if (AudioManager.Instance != null)
+        {
+            if (playerWon)
+            {
+                AudioManager.Instance.PlayWin();
+            }
+            else
+            {
+                AudioManager.Instance.PlayLose();
+            }
+        }
+
         scoreUI.ShowResult(playerWon, playerWon && GameState.IsFinalRound);
     }
 
