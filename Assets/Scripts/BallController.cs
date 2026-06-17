@@ -5,6 +5,11 @@ public class BallController : MonoBehaviour
 {
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private Vector2 serveOffset = new Vector2(0.28f, 0.08f);
+    [SerializeField] private float maxSpeed = 14f;
+    [SerializeField] private float minHorizontalSpeed = 2.2f;
+    [SerializeField] private float netDamping = 0.62f;
+    [SerializeField] private float netHorizontalPush = 3.2f;
+    [SerializeField] private float stuckSpeedThreshold = 0.55f;
 
     private Rigidbody2D body;
     private Collider2D ballCollider;
@@ -61,6 +66,16 @@ public class BallController : MonoBehaviour
         {
             crossedNetSinceLastTouch = true;
         }
+    }
+
+    private void FixedUpdate()
+    {
+        if (IsHeldForServe)
+        {
+            return;
+        }
+
+        ClampVelocity();
     }
 
     private void LateUpdate()
@@ -136,7 +151,7 @@ public class BallController : MonoBehaviour
             crossedNetSinceLastTouch = false;
         }
 
-        body.velocity = velocity;
+        body.velocity = SanitizeVelocity(velocity);
     }
 
     public bool ConsumeGroundTouch(out Vector2 position)
@@ -200,6 +215,12 @@ public class BallController : MonoBehaviour
             return;
         }
 
+        if (collision.collider.CompareTag("Net"))
+        {
+            DeflectFromNet();
+            return;
+        }
+
         if (!collision.collider.CompareTag("Ground"))
         {
             return;
@@ -217,5 +238,52 @@ public class BallController : MonoBehaviour
         doubleTouchFaultSide = BallTouchSide.None;
         groundTouchPending = false;
         sideWallTouchPending = false;
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (IsHeldForServe || !collision.collider.CompareTag("Net"))
+        {
+            return;
+        }
+
+        if (body.velocity.magnitude < stuckSpeedThreshold)
+        {
+            DeflectFromNet();
+        }
+    }
+
+    private Vector2 SanitizeVelocity(Vector2 velocity)
+    {
+        if (velocity.sqrMagnitude <= 0.001f)
+        {
+            return Vector2.zero;
+        }
+
+        var speed = Mathf.Min(velocity.magnitude, maxSpeed);
+        var direction = velocity.normalized;
+        var minHorizontalRatio = Mathf.Clamp01(minHorizontalSpeed / Mathf.Max(speed, 0.001f));
+        if (Mathf.Abs(direction.x) < minHorizontalRatio)
+        {
+            direction.x = direction.x < 0f ? -minHorizontalRatio : minHorizontalRatio;
+            direction.Normalize();
+        }
+
+        return direction * speed;
+    }
+
+    private void ClampVelocity()
+    {
+        body.velocity = SanitizeVelocity(body.velocity);
+    }
+
+    private void DeflectFromNet()
+    {
+        var side = transform.position.x < 0f ? -1f : 1f;
+        var velocity = body.velocity * netDamping;
+        velocity.x = side * Mathf.Max(Mathf.Abs(velocity.x), netHorizontalPush);
+        velocity.y = Mathf.Max(velocity.y, 1.25f);
+        body.velocity = SanitizeVelocity(velocity);
+        body.position += new Vector2(side * 0.08f, 0.04f);
     }
 }
