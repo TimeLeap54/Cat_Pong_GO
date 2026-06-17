@@ -7,13 +7,17 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private Transform ball;
     [SerializeField] private Transform swingPoint;
     [SerializeField] private float swingRadius = 1.05f;
+    [SerializeField] private Vector2 normalSwingBoxSize = new Vector2(1.75f, 2.1f);
+    [SerializeField] private Vector2 recoverySwingOffset = new Vector2(0.82f, 0.62f);
+    [SerializeField] private Vector2 recoverySwingBoxSize = new Vector2(2.45f, 2.55f);
     [SerializeField] private float courtMinX = 0.8f;
-    [SerializeField] private float courtMaxX = 8.2f;
+    [SerializeField] private float courtMaxX = 8.45f;
     [SerializeField] private float homeX = 5.7f;
-    [SerializeField] private float predictionTime = 0.38f;
-    [SerializeField] private float chaseBehindPadding = 0.75f;
-    [SerializeField] private float behindChaseSpeedMultiplier = 1.75f;
+    [SerializeField] private float predictionTime = 0.52f;
+    [SerializeField] private float chaseBehindPadding = 0.35f;
+    [SerializeField] private float behindChaseSpeedMultiplier = 2.45f;
     [SerializeField] private float emergencyThinkDistance = 0.35f;
+    [SerializeField] private float emergencyTargetLead = 0.85f;
     [SerializeField] private float jumpForce = 6.2f;
     [SerializeField] private float jumpCooldown = 0.45f;
     [SerializeField] private float overheadJumpHeight = 1.15f;
@@ -70,14 +74,7 @@ public class OpponentAI : MonoBehaviour
             }
 
             var mistakeOffset = Random.value < profile.mistakeRate ? Random.Range(-2.4f, 2.4f) : Random.Range(-0.45f, 0.45f);
-            var predictedX = ballInOpponentCourt
-                ? ballPosition.x + ballVelocity.x * predictionTime
-                : ballPosition.x + ballVelocity.x * predictionTime * 0.5f;
-
-            if (ballPosition.x > body.position.x + chaseBehindPadding)
-            {
-                predictedX = Mathf.Max(predictedX, ballPosition.x);
-            }
+            var predictedX = PredictDefensiveX(ballPosition, ballVelocity);
 
             targetX = Mathf.Clamp(predictedX + mistakeOffset, courtMinX, courtMaxX);
         }
@@ -121,18 +118,14 @@ public class OpponentAI : MonoBehaviour
             return;
         }
 
-        var hits = Physics2D.OverlapCircleAll(swingPoint.position, swingRadius);
-        foreach (var hit in hits)
+        if (TryHitBall(swingPoint.position, normalSwingBoxSize))
         {
-            if (hit.TryGetComponent(out BallController ballController) && !ballController.IsHeldForServe)
-            {
-                var power = Mathf.Lerp(8.5f, 12.5f, profile.aggression);
-                var vertical = Mathf.Lerp(0.55f, 0.95f, profile.hitAccuracy);
-                var error = Random.Range(-0.7f, 0.7f) * (1f - profile.hitAccuracy);
-                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent);
-                nextSwingTime = Time.time + 0.28f;
-                break;
-            }
+            return;
+        }
+
+        if (IsBallBehind())
+        {
+            TryHitBall((Vector2)swingPoint.position + recoverySwingOffset, recoverySwingBoxSize);
         }
     }
 
@@ -151,13 +144,43 @@ public class OpponentAI : MonoBehaviour
 
         if (IsBallBehind() || Mathf.Abs(ballPosition.x - body.position.x) <= emergencyThinkDistance)
         {
-            targetX = Mathf.Clamp(ballPosition.x, courtMinX, courtMaxX);
+            targetX = Mathf.Clamp(PredictDefensiveX(ballPosition, ballController.Velocity), courtMinX, courtMaxX);
         }
     }
 
     private bool IsBallBehind()
     {
         return ball != null && ball.position.x > body.position.x + chaseBehindPadding;
+    }
+
+    private float PredictDefensiveX(Vector3 ballPosition, Vector2 ballVelocity)
+    {
+        var predictedX = ballPosition.x + ballVelocity.x * predictionTime;
+        if (ballPosition.x > body.position.x + chaseBehindPadding)
+        {
+            predictedX = Mathf.Max(predictedX, ballPosition.x + emergencyTargetLead);
+        }
+
+        return predictedX;
+    }
+
+    private bool TryHitBall(Vector2 center, Vector2 boxSize)
+    {
+        var hits = Physics2D.OverlapBoxAll(center, boxSize, 0f);
+        foreach (var hit in hits)
+        {
+            if (hit.TryGetComponent(out BallController ballController) && !ballController.IsHeldForServe)
+            {
+                var power = Mathf.Lerp(8.5f, 12.5f, profile.aggression);
+                var vertical = Mathf.Lerp(0.55f, 0.95f, profile.hitAccuracy);
+                var error = Random.Range(-0.7f, 0.7f) * (1f - profile.hitAccuracy);
+                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent);
+                nextSwingTime = Time.time + 0.28f;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void TryJumpForOverheadBall()
@@ -202,6 +225,8 @@ public class OpponentAI : MonoBehaviour
         }
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(swingPoint.position, swingRadius);
+        Gizmos.DrawWireCube(swingPoint.position, normalSwingBoxSize);
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireCube((Vector2)swingPoint.position + recoverySwingOffset, recoverySwingBoxSize);
     }
 }
