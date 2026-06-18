@@ -27,6 +27,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float fullChargeTime = 0.9f;
     [SerializeField] private float swingCooldown = 0.22f;
     [SerializeField] private BallController serveBall;
+    [SerializeField] private Animator animator;
     [SerializeField] private Transform groundCheck;
     [SerializeField] private Vector2 groundCheckSize = new Vector2(0.72f, 0.08f);
     [SerializeField] private LayerMask groundLayer = ~0;
@@ -43,11 +44,21 @@ public class PlayerController : MonoBehaviour
     private float serveChargeStartedAt;
     private float liftSwingStartedAt;
     private Vector2 chargedServeVelocity;
+    private static readonly int MoveXHash = Animator.StringToHash("MoveX");
+    private static readonly int GroundedHash = Animator.StringToHash("Grounded");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
+    private static readonly int JSwingHash = Animator.StringToHash("JSwing");
+    private static readonly int KSmashHash = Animator.StringToHash("KSmash");
 
     private void Awake()
     {
         UpgradeSerializedDefaults();
         body = GetComponent<Rigidbody2D>();
+        if (animator == null)
+        {
+            animator = GetComponent<Animator>();
+        }
+
         jumpsRemaining = maxJumpCount;
     }
 
@@ -112,6 +123,7 @@ public class PlayerController : MonoBehaviour
             grounded = false;
             jumpsRemaining--;
             groundCheckLockedUntil = Time.time + jumpGroundLockout;
+            animator?.SetTrigger(JumpHash);
         }
 
         if (Input.GetKeyDown(KeyCode.J) || Input.GetMouseButtonDown(0))
@@ -133,6 +145,7 @@ public class PlayerController : MonoBehaviour
 
             if (Time.time >= nextSwingTime)
             {
+                animator?.SetTrigger(KSmashHash);
                 Swing(new Vector2(1f, -0.08f).normalized * spikeSwingPower, spikeSwingOffset, spikeSwingBoxSize);
             }
         }
@@ -153,6 +166,8 @@ public class PlayerController : MonoBehaviour
     {
         var input = Input.GetAxisRaw("Horizontal");
         body.velocity = new Vector2(input * moveSpeed, body.velocity.y);
+        animator?.SetFloat(MoveXHash, input);
+        animator?.SetBool(GroundedHash, grounded);
 
         var position = body.position;
         position.x = Mathf.Clamp(position.x, minX, maxX);
@@ -216,16 +231,19 @@ public class PlayerController : MonoBehaviour
 
         if (holdTime <= dropTapTime)
         {
+            animator?.SetTrigger(JSwingHash);
             Swing(dropSwingDirection.normalized * dropSwingPower);
             return;
         }
 
         if (holdTime >= strongHoldTime)
         {
+            animator?.SetTrigger(JSwingHash);
             Swing(strongLiftSwingDirection.normalized * strongLiftSwingPower);
             return;
         }
 
+        animator?.SetTrigger(JSwingHash);
         Swing(normalLiftSwingDirection.normalized * liftSwingPower);
     }
 
