@@ -3,10 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] private float moveSpeed = 4.6f;
-    [SerializeField] private float moveAcceleration = 20f;
-    [SerializeField] private float moveDeceleration = 28f;
-    [SerializeField, Range(0f, 1f)] private float airControlMultiplier = 0.78f;
+    [SerializeField] private float moveSpeed = 3.8f;
     [SerializeField] private float jumpForce = 7.25f;
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
@@ -16,19 +13,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Vector2 spikeSwingBoxSize = new Vector2(1.9f, 1.75f);
     [Header("Continuous J Swing")]
     [SerializeField] private float jFullChargeTime = 0.9f;
-    [SerializeField] private float minLiftSwingPower = 4.8f;
-    [SerializeField] private float maxLiftSwingPower = 9.4f;
+    [SerializeField] private float minLiftSwingPower = 4.5f;
+    [SerializeField] private float maxLiftSwingPower = 7.6f;
     [SerializeField] private float highLiftRatio = 1.02f;
     [SerializeField] private float lowLiftRatio = 0.46f;
     [SerializeField] private float verticalAimInfluence = 0.28f;
     [Header("K Smash Rhythm")]
-    [SerializeField] private float spikeSwingPower = 8.4f;
-    [SerializeField] private float chargedSpikePower = 10.8f;
+    [SerializeField] private float spikeSwingPower = 6.8f;
+    [SerializeField] private float chargedSpikePower = 8f;
     [SerializeField] private int smashHitsToCharge = 3;
     [SerializeField] private float smashChainWindow = 6f;
-    [SerializeField] private Vector2 smashRecoilPerLevel = new Vector2(-0.35f, 0.12f);
-    [SerializeField] private Vector2 upwardServeVelocity = new Vector2(7.3f, 4.9f);
-    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(8.8f, -0.35f);
+    [SerializeField] private Vector2 upwardServeVelocity = new Vector2(6.4f, 4.5f);
+    [SerializeField] private Vector2 spikeServeVelocity = new Vector2(7.6f, -0.25f);
     [SerializeField] private float minServePowerMultiplier = 0.78f;
     [SerializeField] private float maxServePowerMultiplier = 1.35f;
     [SerializeField] private float fullChargeTime = 0.9f;
@@ -39,13 +35,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform groundCheck;
     [SerializeField] private Vector2 groundCheckSize = new Vector2(0.72f, 0.08f);
     [SerializeField] private LayerMask groundLayer = ~0;
-    [SerializeField] private int maxJumpCount = 2;
+    [SerializeField] private int maxJumpCount = 1;
     [SerializeField] private float jumpGroundLockout = 0.12f;
     [Header("Wall Step")]
     [SerializeField] private float wallContactDistance = 0.12f;
     [SerializeField] private float wallSlideSpeed = 2.4f;
     [SerializeField] private Vector2 wallKickVelocity = new Vector2(6.2f, 8.1f);
     [SerializeField] private float wallKickControlLock = 0.16f;
+    [Header("Ground Dash")]
+    [SerializeField] private float dashSpeed = 6.1f;
+    [SerializeField] private float dashDuration = 0.16f;
+    [SerializeField] private float dashCooldown = 0.55f;
+    [SerializeField] private float doubleTapWindow = 0.24f;
     [Header("Serve Presentation")]
     [SerializeField] private float serveTossDuration = 0.3f;
     [SerializeField] private float serveTossHeight = 0.72f;
@@ -66,6 +67,11 @@ public class PlayerController : MonoBehaviour
     private bool servingInProgress;
     private bool wallKickAvailable = true;
     private float wallKickControlLockedUntil;
+    private float dashEndsAt;
+    private float nextDashTime;
+    private float lastLeftTap = float.NegativeInfinity;
+    private float lastRightTap = float.NegativeInfinity;
+    private int dashDirection;
     private bool swingWindowActive;
     private float swingWindowEndsAt;
     private Vector2 bufferedSwingVelocity;
@@ -144,6 +150,7 @@ public class PlayerController : MonoBehaviour
     {
         UpdateGrounded();
         UpdateSwingWindow();
+        HandleDashInput();
 
         if (Input.GetKeyDown(KeyCode.Space) && TryWallKick())
         {
@@ -219,23 +226,22 @@ public class PlayerController : MonoBehaviour
             verticalVelocity = -wallSlideSpeed;
         }
 
-        var targetHorizontalVelocity = input * moveSpeed;
-        var acceleration = Mathf.Abs(input) > 0.01f ? moveAcceleration : moveDeceleration;
-        if (!grounded)
+        float horizontalVelocity;
+        if (Time.time < dashEndsAt)
         {
-            acceleration *= airControlMultiplier;
+            horizontalVelocity = dashDirection * dashSpeed;
         }
-
-        var horizontalVelocity = Time.time < wallKickControlLockedUntil
-            ? body.velocity.x
-            : Mathf.MoveTowards(body.velocity.x, targetHorizontalVelocity, acceleration * Time.fixedDeltaTime);
+        else
+        {
+            horizontalVelocity = Time.time < wallKickControlLockedUntil ? body.velocity.x : input * moveSpeed;
+        }
         if (Time.time >= wallKickControlLockedUntil && IsTouchingBackWall() && input < 0f)
         {
             horizontalVelocity = 0f;
         }
 
         body.velocity = new Vector2(horizontalVelocity, verticalVelocity);
-        animator?.SetFloat(MoveXHash, input);
+        animator?.SetFloat(MoveXHash, Time.time < dashEndsAt ? dashDirection : input);
         animator?.SetBool(GroundedHash, grounded);
 
         var position = body.position;
@@ -420,12 +426,53 @@ public class PlayerController : MonoBehaviour
     {
         smashRhythmHits = bufferedSmashLevel;
         lastSmashHitTime = Time.time;
-        body.velocity += smashRecoilPerLevel * smashRhythmHits;
-
         if (smashRhythmHits >= smashHitsToCharge)
         {
             smashRhythmHits = 0;
         }
+    }
+
+    private void HandleDashInput()
+    {
+        if (!grounded || Time.time < nextDashTime)
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            if (Time.time - lastLeftTap <= doubleTapWindow)
+            {
+                StartDash(-1);
+            }
+            lastLeftTap = Time.time;
+        }
+
+        if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            if (Time.time - lastRightTap <= doubleTapWindow)
+            {
+                StartDash(1);
+            }
+            lastRightTap = Time.time;
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        {
+            var direction = Mathf.RoundToInt(Input.GetAxisRaw("Horizontal"));
+            if (direction != 0)
+            {
+                StartDash(direction);
+            }
+        }
+    }
+
+    private void StartDash(int direction)
+    {
+        dashDirection = direction;
+        dashEndsAt = Time.time + dashDuration;
+        nextDashTime = Time.time + dashCooldown;
+        animator?.SetFloat(MoveXHash, direction);
     }
 
     private bool TryWallKick()

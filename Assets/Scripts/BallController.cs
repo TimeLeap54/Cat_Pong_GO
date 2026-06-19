@@ -6,8 +6,8 @@ public class BallController : MonoBehaviour
 {
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private Vector2 serveOffset = new Vector2(0.28f, 0.08f);
-    [SerializeField] private float maxSpeed = 10.5f;
-    [SerializeField] private float minHorizontalSpeed = 1.2f;
+    [SerializeField] private float maxSpeed = 8.2f;
+    [SerializeField] private float minHorizontalSpeed = 0.4f;
     [SerializeField] private float netDamping = 0.62f;
     [SerializeField] private float netHorizontalPush = 2.3f;
     [SerializeField] private float stuckSpeedThreshold = 0.55f;
@@ -29,6 +29,7 @@ public class BallController : MonoBehaviour
     private float serveTossStartedAt;
     private float serveTossDuration;
     private float serveTossHeight;
+    private float flightSpeed;
     private readonly List<Collider2D> ignoredBodyColliders = new List<Collider2D>();
 
     public bool IsHeldForServe { get; private set; }
@@ -137,6 +138,7 @@ public class BallController : MonoBehaviour
     {
         IsHeldForServe = true;
         serveTossActive = false;
+        flightSpeed = 0f;
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
         body.velocity = Vector2.zero;
@@ -211,6 +213,7 @@ public class BallController : MonoBehaviour
         }
 
         body.velocity = SanitizeVelocity(velocity);
+        flightSpeed = body.velocity.magnitude;
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayPawHit(hitStyle);
@@ -348,21 +351,17 @@ public class BallController : MonoBehaviour
             return Vector2.zero;
         }
 
-        var speed = Mathf.Min(velocity.magnitude, maxSpeed);
-        var direction = velocity.normalized;
-        var minHorizontalRatio = Mathf.Clamp01(minHorizontalSpeed / Mathf.Max(speed, 0.001f));
-        if (Mathf.Abs(direction.x) < minHorizontalRatio)
-        {
-            direction.x = direction.x < 0f ? -minHorizontalRatio : minHorizontalRatio;
-            direction.Normalize();
-        }
-
-        return direction * speed;
+        return velocity.normalized * Mathf.Min(velocity.magnitude, maxSpeed);
     }
 
     private void ClampVelocity()
     {
-        body.velocity = SanitizeVelocity(body.velocity);
+        if (body.velocity.sqrMagnitude <= 0.001f || flightSpeed <= 0.001f)
+        {
+            return;
+        }
+
+        body.velocity = body.velocity.normalized * Mathf.Min(flightSpeed, maxSpeed);
     }
 
     private void DeflectFromNet()
@@ -372,6 +371,7 @@ public class BallController : MonoBehaviour
         velocity.x = side * Mathf.Max(Mathf.Abs(velocity.x), netHorizontalPush);
         velocity.y = Mathf.Max(velocity.y, 1.25f);
         body.velocity = SanitizeVelocity(velocity);
+        flightSpeed = Mathf.Clamp(body.velocity.magnitude, minHorizontalSpeed, maxSpeed);
         body.position += new Vector2(side * 0.08f, 0.04f);
     }
 }

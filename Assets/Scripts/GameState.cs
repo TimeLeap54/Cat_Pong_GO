@@ -23,7 +23,7 @@ public static class GameState
         new OpponentProfile
         {
             displayName = "Round 1: Rookie Cat",
-            moveSpeed = 2.55f,
+            moveSpeed = 2.35f,
             reactionDelay = 0.62f,
             mistakeRate = 0.42f,
             hitAccuracy = 0.48f,
@@ -32,7 +32,7 @@ public static class GameState
         new OpponentProfile
         {
             displayName = "Round 2: Dojo Cat",
-            moveSpeed = 3.6f,
+            moveSpeed = 3f,
             reactionDelay = 0.34f,
             mistakeRate = 0.16f,
             hitAccuracy = 0.72f,
@@ -41,7 +41,7 @@ public static class GameState
         new OpponentProfile
         {
             displayName = "Final: Master Cat",
-            moveSpeed = 4.2f,
+            moveSpeed = 3.5f,
             reactionDelay = 0.25f,
             mistakeRate = 0.12f,
             hitAccuracy = 0.82f,

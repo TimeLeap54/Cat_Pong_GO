@@ -93,7 +93,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -5.5, y: -0.2, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.06, y: 1.06, z: 1.06}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 493182386675070460}
@@ -192,10 +192,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9262ea8654655fd4da433d438b58c231, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 4.6
-  moveAcceleration: 20
-  moveDeceleration: 28
-  airControlMultiplier: 0.78
+  moveSpeed: 3.8
   jumpForce: 7.25
   minX: -8.2
   maxX: -0.8
@@ -204,20 +201,19 @@ MonoBehaviour:
   spikeSwingOffset: {x: 0.08, y: 0.82}
   spikeSwingBoxSize: {x: 1.9, y: 1.75}
   jFullChargeTime: 0.9
-  minLiftSwingPower: 4.8
-  maxLiftSwingPower: 9.4
+  minLiftSwingPower: 4.5
+  maxLiftSwingPower: 7.6
   highLiftRatio: 1.02
   lowLiftRatio: 0.46
   verticalAimInfluence: 0.28
-  spikeSwingPower: 8.4
-  chargedSpikePower: 10.8
+  spikeSwingPower: 6.8
+  chargedSpikePower: 8
   smashHitsToCharge: 3
   smashChainWindow: 6
-  smashRecoilPerLevel: {x: -0.35, y: 0.12}
-  upwardServeVelocity: {x: 7.3, y: 4.9}
-  spikeServeVelocity: {x: 8.8, y: -0.35}
+  upwardServeVelocity: {x: 6.4, y: 4.5}
+  spikeServeVelocity: {x: 7.6, y: -0.25}
   minServePowerMultiplier: 0.76
-  maxServePowerMultiplier: 1.18
+  maxServePowerMultiplier: 1.08
   fullChargeTime: 0.9
   swingCooldown: 0.22
   swingInputBuffer: 0.14
@@ -228,12 +224,16 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 1
-  maxJumpCount: 2
+  maxJumpCount: 1
   jumpGroundLockout: 0.12
   wallContactDistance: 0.12
   wallSlideSpeed: 2.4
   wallKickVelocity: {x: 5.2, y: 7.6}
   wallKickControlLock: 0.16
+  dashSpeed: 6.1
+  dashDuration: 0.16
+  dashCooldown: 0.55
+  doubleTapWindow: 0.24
   serveTossDuration: 0.3
   serveTossHeight: 0.72
   serveSwingLeadTime: 0.16
@@ -290,8 +290,8 @@ CapsuleCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: -0.14}
-  m_Size: {x: 0.72, y: 1.28}
+  m_Offset: {x: 0, y: -0.13207547}
+  m_Size: {x: 0.67924535, y: 1.2075472}
   m_Direction: 0
 --- !u!1 &8259572840010353035
 GameObject:
@@ -318,8 +318,8 @@ Transform:
   m_GameObject: {fileID: 8259572840010353035}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.8, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: 0, y: -0.75471705, z: 0}
+  m_LocalScale: {x: 0.9433963, y: 0.9433963, z: 0.9433963}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7978744317166844751}

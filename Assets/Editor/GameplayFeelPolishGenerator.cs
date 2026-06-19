@@ -20,6 +20,8 @@ public static class GameplayFeelPolishGenerator
     {
         ConfigurePlayerPrefab();
         ConfigureOpponentPrefab();
+        ConfigureBallPrefab();
+        ConfigureNetPrefab();
         GeneratePawAudio();
         ConfigureMatchScene();
         ConfigureAudioInScene(MainMenuScene);
@@ -33,13 +35,15 @@ public static class GameplayFeelPolishGenerator
         var root = PrefabUtility.LoadPrefabContents(PlayerPrefab);
         try
         {
-            ReplaceWithCapsule(root, new Vector2(0.72f, 1.28f), new Vector2(0f, -0.14f));
+            const float visualScale = 1.06f;
+            root.transform.localScale = Vector3.one * visualScale;
+            ReplaceWithCapsule(
+                root,
+                new Vector2(0.72f / visualScale, 1.28f / visualScale),
+                new Vector2(0f, -0.14f / visualScale));
 
             var controller = root.GetComponent<PlayerController>();
-            SetFloat(controller, "moveSpeed", 4.6f);
-            SetFloat(controller, "moveAcceleration", 20f);
-            SetFloat(controller, "moveDeceleration", 28f);
-            SetFloat(controller, "airControlMultiplier", 0.78f);
+            SetFloat(controller, "moveSpeed", 3.8f);
             SetVector2(controller, "swingBoxSize", new Vector2(2.2f, 2.3f));
             SetVector2(controller, "spikeSwingOffset", new Vector2(0.08f, 0.82f));
             SetVector2(controller, "spikeSwingBoxSize", new Vector2(1.9f, 1.75f));
@@ -49,20 +53,24 @@ public static class GameplayFeelPolishGenerator
             SetVector2(controller, "wallKickVelocity", new Vector2(5.2f, 7.6f));
             SetFloat(controller, "wallKickControlLock", 0.16f);
             SetFloat(controller, "jFullChargeTime", 0.9f);
-            SetFloat(controller, "minLiftSwingPower", 4.8f);
-            SetFloat(controller, "maxLiftSwingPower", 9.4f);
+            SetFloat(controller, "minLiftSwingPower", 4.5f);
+            SetFloat(controller, "maxLiftSwingPower", 7.6f);
             SetFloat(controller, "highLiftRatio", 1.02f);
             SetFloat(controller, "lowLiftRatio", 0.46f);
             SetFloat(controller, "verticalAimInfluence", 0.28f);
-            SetFloat(controller, "spikeSwingPower", 8.4f);
-            SetFloat(controller, "chargedSpikePower", 10.8f);
+            SetFloat(controller, "spikeSwingPower", 6.8f);
+            SetFloat(controller, "chargedSpikePower", 8f);
             SetInt(controller, "smashHitsToCharge", 3);
             SetFloat(controller, "smashChainWindow", 6f);
-            SetVector2(controller, "smashRecoilPerLevel", new Vector2(-0.35f, 0.12f));
-            SetVector2(controller, "upwardServeVelocity", new Vector2(7.3f, 4.9f));
-            SetVector2(controller, "spikeServeVelocity", new Vector2(8.8f, -0.35f));
+            SetVector2(controller, "upwardServeVelocity", new Vector2(6.4f, 4.5f));
+            SetVector2(controller, "spikeServeVelocity", new Vector2(7.6f, -0.25f));
             SetFloat(controller, "minServePowerMultiplier", 0.76f);
-            SetFloat(controller, "maxServePowerMultiplier", 1.18f);
+            SetFloat(controller, "maxServePowerMultiplier", 1.08f);
+            SetInt(controller, "maxJumpCount", 1);
+            SetFloat(controller, "dashSpeed", 6.1f);
+            SetFloat(controller, "dashDuration", 0.16f);
+            SetFloat(controller, "dashCooldown", 0.55f);
+            SetFloat(controller, "doubleTapWindow", 0.24f);
             SetFloat(controller, "serveTossDuration", 0.3f);
             SetFloat(controller, "serveTossHeight", 0.72f);
             SetFloat(controller, "serveSwingLeadTime", 0.16f);
@@ -84,8 +92,8 @@ public static class GameplayFeelPolishGenerator
             var groundCheck = root.transform.Find("GroundCheck");
             if (groundCheck != null)
             {
-                groundCheck.localPosition = new Vector3(0f, -0.8f, 0f);
-                groundCheck.localScale = Vector3.one;
+                groundCheck.localPosition = new Vector3(0f, -0.8f / visualScale, 0f);
+                groundCheck.localScale = Vector3.one / visualScale;
             }
 
             var animator = root.GetComponent<Animator>();
@@ -107,17 +115,87 @@ public static class GameplayFeelPolishGenerator
         var root = PrefabUtility.LoadPrefabContents(OpponentPrefab);
         try
         {
-            ReplaceWithCapsule(root, new Vector2(0.78f, 1.3f), new Vector2(0f, -0.12f));
-            var ai = root.GetComponent<OpponentAI>();
-            SetFloat(ai, "behindChaseSpeedMultiplier", 1.45f);
-            SetFloat(ai, "moveAcceleration", 11f);
-            SetFloat(ai, "moveDeceleration", 15f);
+            const float visualScale = 1.06f;
+            root.transform.localScale = Vector3.one * visualScale;
+            ReplaceWithCapsule(
+                root,
+                new Vector2(0.78f / visualScale, 1.3f / visualScale),
+                new Vector2(0f, -0.12f / visualScale));
             var animator = root.GetComponent<Animator>();
             if (animator != null)
             {
                 animator.speed = 0.84f;
             }
             PrefabUtility.SaveAsPrefabAsset(root, OpponentPrefab);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void ConfigureBallPrefab()
+    {
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(BallPrefab) == null)
+        {
+            return;
+        }
+
+        var root = PrefabUtility.LoadPrefabContents(BallPrefab);
+        try
+        {
+            root.transform.localScale = Vector3.one * 0.3f;
+            var controller = root.GetComponent<BallController>();
+            SetFloat(controller, "maxSpeed", 8.2f);
+            SetFloat(controller, "minHorizontalSpeed", 0.4f);
+            SetFloat(controller, "netHorizontalPush", 2.1f);
+
+            var body = root.GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.gravityScale = 0.82f;
+                body.drag = 0f;
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(root, BallPrefab);
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(root);
+        }
+    }
+
+    private static void ConfigureNetPrefab()
+    {
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(NetPrefab) == null)
+        {
+            return;
+        }
+
+        var root = PrefabUtility.LoadPrefabContents(NetPrefab);
+        try
+        {
+            root.transform.localPosition = new Vector3(0f, -0.075f, 0f);
+            root.transform.localScale = Vector3.one;
+            var collider = root.GetComponent<BoxCollider2D>();
+            if (collider != null)
+            {
+                collider.size = new Vector2(0.14f, 1.85f);
+                collider.offset = Vector2.zero;
+            }
+
+            var visual = root.transform.Find("NetVisual");
+            if (visual != null)
+            {
+                var renderer = visual.GetComponent<SpriteRenderer>();
+                if (renderer != null && renderer.sprite != null)
+                {
+                    var scale = 1.85f / renderer.sprite.bounds.size.y;
+                    visual.localScale = new Vector3(scale, scale, 1f);
+                }
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(root, NetPrefab);
         }
         finally
         {
@@ -157,27 +235,27 @@ public static class GameplayFeelPolishGenerator
             ball.transform.localScale = Vector3.one * 0.3f;
             var ballController = ball.GetComponent<BallController>();
             SetVector2(ballController, "serveOffset", new Vector2(0.18f, 0.08f));
-            SetFloat(ballController, "maxSpeed", 10.5f);
-            SetFloat(ballController, "minHorizontalSpeed", 1.2f);
-            SetFloat(ballController, "netHorizontalPush", 2.3f);
+            SetFloat(ballController, "maxSpeed", 8.2f);
+            SetFloat(ballController, "minHorizontalSpeed", 0.4f);
+            SetFloat(ballController, "netHorizontalPush", 2.1f);
             var body = ball.GetComponent<Rigidbody2D>();
             if (body != null)
             {
                 body.gravityScale = 0.82f;
-                body.drag = 0.03f;
+                body.drag = 0f;
             }
         }
 
         var net = GameObject.Find("Net");
         if (net != null)
         {
-            net.transform.position = new Vector3(0f, -0.45f, 0f);
+            net.transform.position = new Vector3(0f, -0.075f, 0f);
             net.transform.localScale = Vector3.one;
 
             var collider = net.GetComponent<BoxCollider2D>();
             if (collider != null)
             {
-                collider.size = new Vector2(0.14f, 1.1f);
+                collider.size = new Vector2(0.14f, 1.85f);
                 collider.offset = Vector2.zero;
             }
 
@@ -188,7 +266,7 @@ public static class GameplayFeelPolishGenerator
                 var renderer = visual.GetComponent<SpriteRenderer>();
                 if (renderer != null && renderer.sprite != null)
                 {
-                    var scale = 1.1f / renderer.sprite.bounds.size.y;
+                    var scale = 1.85f / renderer.sprite.bounds.size.y;
                     visual.localScale = new Vector3(scale, scale, 1f);
                 }
             }

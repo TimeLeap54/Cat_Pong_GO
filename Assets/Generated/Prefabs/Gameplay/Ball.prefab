@@ -100,7 +100,7 @@ Rigidbody2D:
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
-  m_LinearDrag: 0.03
+  m_LinearDrag: 0
   m_AngularDrag: 0.05
   m_GravityScale: 0.82
   m_Material: {fileID: 0}
@@ -163,8 +163,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   serveAnchor: {fileID: 0}
   serveOffset: {x: 0.18, y: 0.08}
-  maxSpeed: 10.5
-  minHorizontalSpeed: 1.2
+  maxSpeed: 8.2
+  minHorizontalSpeed: 0.4
   netDamping: 0.62
-  netHorizontalPush: 2.3
+  netHorizontalPush: 2.1
   stuckSpeedThreshold: 0.55
