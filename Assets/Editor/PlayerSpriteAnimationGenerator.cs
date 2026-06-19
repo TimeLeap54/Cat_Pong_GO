@@ -11,8 +11,8 @@ using UnityEngine.SceneManagement;
 
 public static class PlayerSpriteAnimationGenerator
 {
-    private const string ArtPath = "Assets/Art";
-    private const string MapPath = ArtPath + "/Map1.png";
+    private const string ArtPath = "Assets/Art/Characters/Player";
+    private const string MapPath = "Assets/Art/Environment/Map1.png";
     private const string AnimationsPath = "Assets/Generated/PlayerAnimations";
     private const string PrefabsPath = "Assets/Generated/Prefabs";
     private const string ControllerPath = AnimationsPath + "/PlayerCat.controller";

@@ -21,6 +21,7 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private float jumpForce = 6.2f;
     [SerializeField] private float jumpCooldown = 0.45f;
     [SerializeField] private float overheadJumpHeight = 1.15f;
+    [SerializeField] private Animator animator;
 
     private Rigidbody2D body;
     private OpponentProfile profile;
@@ -29,10 +30,19 @@ public class OpponentAI : MonoBehaviour
     private float nextSwingTime;
     private float nextJumpTime;
     private bool grounded;
+    private static readonly int MoveXHash = Animator.StringToHash("MoveX");
+    private static readonly int GroundedHash = Animator.StringToHash("Grounded");
+    private static readonly int JumpHash = Animator.StringToHash("Jump");
+    private static readonly int JSwingHash = Animator.StringToHash("JSwing");
+    private static readonly int KSmashHash = Animator.StringToHash("KSmash");
 
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
+        if (animator == null)
+        {
+            animator = GetComponent<Animator>();
+        }
     }
 
     public void Init(Transform ballTransform, OpponentProfile opponentProfile)
@@ -98,6 +108,8 @@ public class OpponentAI : MonoBehaviour
         var speedMultiplier = IsBallBehind() ? behindChaseSpeedMultiplier : 1f;
         var speed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed * speedMultiplier : 0f;
         body.velocity = new Vector2(speed, body.velocity.y);
+        animator?.SetFloat(MoveXHash, speed);
+        animator?.SetBool(GroundedHash, grounded);
 
         var position = body.position;
         position.x = Mathf.Clamp(position.x, courtMinX, courtMaxX);
@@ -180,6 +192,7 @@ public class OpponentAI : MonoBehaviour
                 var vertical = Mathf.Lerp(0.55f, 0.95f, profile.hitAccuracy);
                 var error = Random.Range(-0.7f, 0.7f) * (1f - profile.hitAccuracy);
                 ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent);
+                animator?.SetTrigger(grounded ? JSwingHash : KSmashHash);
                 nextSwingTime = Time.time + 0.28f;
                 return true;
             }
@@ -203,6 +216,7 @@ public class OpponentAI : MonoBehaviour
             body.velocity = new Vector2(body.velocity.x, jumpForce);
             grounded = false;
             nextJumpTime = Time.time + jumpCooldown;
+            animator?.SetTrigger(JumpHash);
         }
     }
 
@@ -211,6 +225,7 @@ public class OpponentAI : MonoBehaviour
         if (collision.collider.CompareTag("Ground"))
         {
             grounded = true;
+            animator?.SetBool(GroundedHash, true);
         }
     }
 
@@ -219,6 +234,7 @@ public class OpponentAI : MonoBehaviour
         if (collision.collider.CompareTag("Ground"))
         {
             grounded = true;
+            animator?.SetBool(GroundedHash, true);
         }
     }
 
