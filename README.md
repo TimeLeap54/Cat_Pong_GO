@@ -75,4 +75,5 @@ Unity 2022.3.62f3 기반 2D URP 사이드뷰 테니스/핑퐁 MVP입니다.
 - [게임 기획서](Docs/game_design_v0.1.md)
 - [14일 개발 일정](Docs/development_schedule_v0.1.md)
 - [진행 체크리스트](Docs/progress_checklist.md)
+- [Git 마일스톤과 복습 방법](Docs/milestones.md)
 - [Day 5 AI 밸런스](Docs/Day5AIBalance.md)
