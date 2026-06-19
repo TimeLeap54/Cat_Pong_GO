@@ -17,6 +17,7 @@ public static class PlayerSpriteAnimationGenerator
     private const string ControllerPath = AnimationsPath + "/PlayerCat.controller";
     private const string PlayerPrefabPath = PrefabsPath + "/Player.prefab";
     private const float PixelsPerUnit = 170f;
+    private const float MovementPixelsPerUnit = 179f;
     private static readonly Vector2 StablePivot = new Vector2(0.5f, 0.12f);
 
     [MenuItem("Tools/CatPong/Generate Player Sprite Animations")]
@@ -114,7 +115,7 @@ public static class PlayerSpriteAnimationGenerator
 
         importer.textureType = TextureImporterType.Sprite;
         importer.spriteImportMode = SpriteImportMode.Multiple;
-        importer.spritePixelsPerUnit = PixelsPerUnit;
+        importer.spritePixelsPerUnit = GetPixelsPerUnit(path);
         importer.filterMode = FilterMode.Bilinear;
         importer.textureCompression = TextureImporterCompression.Uncompressed;
 
@@ -122,6 +123,7 @@ public static class PlayerSpriteAnimationGenerator
         importer.ReadTextureSettings(settings);
         settings.spriteAlignment = (int)SpriteAlignment.Custom;
         settings.spritePivot = StablePivot;
+        settings.spritePixelsPerUnit = GetPixelsPerUnit(path);
         importer.SetTextureSettings(settings);
 
         var dataProvider = AssetImporter.GetAtPath(path) as ISpriteEditorDataProvider;
@@ -156,6 +158,14 @@ public static class PlayerSpriteAnimationGenerator
         }
 
         return int.TryParse(value[(index + 1)..], out var number) ? number : 0;
+    }
+
+    private static float GetPixelsPerUnit(string path)
+    {
+        var fileName = Path.GetFileName(path);
+        return fileName is "cat_tennis_run_6f.png" or "cat_tennis_backstep_6f.png"
+            ? MovementPixelsPerUnit
+            : PixelsPerUnit;
     }
 
     private static void ApplyToMatchScene(AnimatorController controller)
