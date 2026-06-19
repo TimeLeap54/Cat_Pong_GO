@@ -244,24 +244,16 @@ public class MatchManager : MonoBehaviour
 
     private void EnsureCourtLayout()
     {
-        var courtSprite = FindCourtSprite();
-        ConfigureCourtBox("GroundBase", new Vector2(0f, -1.35f), new Vector2(24f, 0.7f), new Color(0.12f, 0.34f, 0.27f), true, courtSprite, "Court");
-        ConfigureCourtBox("CourtInBounds", new Vector2(0f, -0.96f), new Vector2(17.2f, 0.12f), new Color(0.18f, 0.56f, 0.36f), false, courtSprite);
-        ConfigureCourtBox("LeftOutLine", new Vector2(-8.6f, -0.84f), new Vector2(0.08f, 0.42f), new Color(0.96f, 0.96f, 0.86f), false, courtSprite);
-        ConfigureCourtBox("RightOutLine", new Vector2(8.6f, -0.84f), new Vector2(0.08f, 0.42f), new Color(0.96f, 0.96f, 0.86f), false, courtSprite);
-        ConfigureCourtBox("CenterCourtLine", new Vector2(0f, -0.84f), new Vector2(0.05f, 0.32f), new Color(0.9f, 0.9f, 0.82f), false, courtSprite);
+        ConfigureCourtBox("GroundBase", new Vector2(0f, -1.35f), new Vector2(24f, 0.7f), true, "Court");
+        ConfigureCourtBox("CourtInBounds", new Vector2(0f, -0.96f), new Vector2(17.2f, 0.12f), false);
+        ConfigureCourtBox("LeftOutLine", new Vector2(-8.6f, -0.84f), new Vector2(0.08f, 0.42f), false);
+        ConfigureCourtBox("RightOutLine", new Vector2(8.6f, -0.84f), new Vector2(0.08f, 0.42f), false);
+        ConfigureCourtBox("CenterCourtLine", new Vector2(0f, -0.84f), new Vector2(0.05f, 0.32f), false);
         ConfigureGoalZone("LeftScoreZone", new Vector2(-4.3f, -0.86f), new Vector2(8.6f, 0.22f));
         ConfigureGoalZone("RightScoreZone", new Vector2(4.3f, -0.86f), new Vector2(8.6f, 0.22f));
     }
 
-    private Sprite FindCourtSprite()
-    {
-        var renderer = GameObject.Find("GroundBase")?.GetComponent<SpriteRenderer>()
-            ?? GameObject.Find("Court")?.GetComponent<SpriteRenderer>();
-        return renderer != null ? renderer.sprite : null;
-    }
-
-    private void ConfigureCourtBox(string name, Vector2 position, Vector2 size, Color color, bool collider, Sprite sprite, string fallbackName = null)
+    private void ConfigureCourtBox(string name, Vector2 position, Vector2 size, bool collider, string fallbackName = null)
     {
         var obj = GameObject.Find(name);
         if (obj == null && !string.IsNullOrEmpty(fallbackName))
@@ -281,9 +273,11 @@ public class MatchManager : MonoBehaviour
         obj.transform.position = new Vector3(position.x, position.y, 0f);
         obj.transform.localScale = new Vector3(size.x, size.y, 1f);
 
-        var renderer = obj.GetComponent<SpriteRenderer>() ?? obj.AddComponent<SpriteRenderer>();
-        renderer.sprite = sprite;
-        renderer.color = color;
+        var renderer = obj.GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
+        }
 
         var box = obj.GetComponent<BoxCollider2D>();
         if (collider)
@@ -320,6 +314,12 @@ public class MatchManager : MonoBehaviour
         {
             box.size = size;
             box.isTrigger = true;
+        }
+
+        var renderer = zone.GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
         }
     }
 }

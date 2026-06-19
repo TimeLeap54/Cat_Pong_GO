@@ -216,6 +216,7 @@ public static class PlayerSpriteAnimationGenerator
         }
 
         ApplyCourtBackdrop();
+        ApplyInvisibleCourtZones();
 
         Directory.CreateDirectory(PrefabsPath);
         PrefabUtility.SaveAsPrefabAssetAndConnect(player, PlayerPrefabPath, InteractionMode.AutomatedAction);
@@ -242,6 +243,8 @@ public static class PlayerSpriteAnimationGenerator
         if (backdrop == null)
         {
             backdrop = new GameObject("CourtBackdrop");
+            backdrop.transform.position = new Vector3(0f, 1.9f, 1f);
+            backdrop.transform.localScale = new Vector3(18f, 8f, 1f);
         }
 
         var renderer = backdrop.GetComponent<SpriteRenderer>();
@@ -253,8 +256,65 @@ public static class PlayerSpriteAnimationGenerator
         renderer.sprite = mapSprite;
         renderer.color = Color.white;
         renderer.sortingOrder = -20;
-        backdrop.transform.position = new Vector3(0f, 1.9f, 1f);
-        backdrop.transform.localScale = new Vector3(18f, 8f, 1f);
+    }
+
+    private static void ApplyInvisibleCourtZones()
+    {
+        ConfigureInvisibleCourtBox("GroundBase", new Vector2(0f, -1.35f), new Vector2(24f, 0.7f), false);
+        ConfigureInvisibleCourtBox("CourtInBounds", new Vector2(0f, -0.96f), new Vector2(17.2f, 0.12f), true);
+        ConfigureInvisibleCourtBox("LeftOutLine", new Vector2(-8.6f, -0.84f), new Vector2(0.08f, 0.42f), true);
+        ConfigureInvisibleCourtBox("RightOutLine", new Vector2(8.6f, -0.84f), new Vector2(0.08f, 0.42f), true);
+        ConfigureInvisibleCourtBox("CenterCourtLine", new Vector2(0f, -0.84f), new Vector2(0.05f, 0.32f), true);
+        ConfigureInvisibleGoalZone("LeftScoreZone", new Vector2(-4.3f, -0.86f), new Vector2(8.6f, 0.22f));
+        ConfigureInvisibleGoalZone("RightScoreZone", new Vector2(4.3f, -0.86f), new Vector2(8.6f, 0.22f));
+    }
+
+    private static void ConfigureInvisibleCourtBox(string name, Vector2 position, Vector2 scale, bool removeCollider)
+    {
+        var obj = GameObject.Find(name);
+        if (obj == null)
+        {
+            return;
+        }
+
+        obj.transform.position = new Vector3(position.x, position.y, 0f);
+        obj.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+
+        var renderer = obj.GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
+        }
+
+        var box = obj.GetComponent<BoxCollider2D>();
+        if (removeCollider && box != null)
+        {
+            UnityEngine.Object.DestroyImmediate(box);
+        }
+    }
+
+    private static void ConfigureInvisibleGoalZone(string name, Vector2 position, Vector2 size)
+    {
+        var zone = GameObject.Find(name);
+        if (zone == null)
+        {
+            return;
+        }
+
+        zone.transform.position = new Vector3(position.x, position.y, 0f);
+
+        var renderer = zone.GetComponent<SpriteRenderer>();
+        if (renderer != null)
+        {
+            renderer.enabled = false;
+        }
+
+        var box = zone.GetComponent<BoxCollider2D>();
+        if (box != null)
+        {
+            box.size = size;
+            box.isTrigger = true;
+        }
     }
 
     private static void ConfigureSingleSpriteImporter(string path, float pixelsPerUnit)
