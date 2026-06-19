@@ -12,13 +12,14 @@ using UnityEngine.SceneManagement;
 public static class PlayerSpriteAnimationGenerator
 {
     private const string ArtPath = "Assets/Art";
+    private const string MapPath = ArtPath + "/Map1.png";
     private const string AnimationsPath = "Assets/Generated/PlayerAnimations";
     private const string PrefabsPath = "Assets/Generated/Prefabs";
     private const string ControllerPath = AnimationsPath + "/PlayerCat.controller";
     private const string PlayerPrefabPath = PrefabsPath + "/Player.prefab";
     private const float PixelsPerUnit = 170f;
     private const float MovementPixelsPerUnit = 179f;
-    private static readonly Vector2 StablePivot = new Vector2(0.5f, 0.12f);
+    private static readonly Vector2 StablePivot = new Vector2(0.5f, 0.38f);
 
     [MenuItem("Tools/CatPong/Generate Player Sprite Animations")]
     public static void Generate()
@@ -126,7 +127,7 @@ public static class PlayerSpriteAnimationGenerator
         settings.spritePixelsPerUnit = GetPixelsPerUnit(path);
         importer.SetTextureSettings(settings);
 
-        var dataProvider = AssetImporter.GetAtPath(path) as ISpriteEditorDataProvider;
+        var dataProvider = GetSpriteDataProvider(importer);
         if (dataProvider != null)
         {
             dataProvider.InitSpriteEditorDataProvider();
@@ -142,6 +143,13 @@ public static class PlayerSpriteAnimationGenerator
         }
 
         importer.SaveAndReimport();
+    }
+
+    private static ISpriteEditorDataProvider GetSpriteDataProvider(AssetImporter importer)
+    {
+        var factory = new SpriteDataProviderFactories();
+        factory.Init();
+        return factory.GetSpriteEditorDataProviderFromObject(importer);
     }
 
     private static int ExtractTrailingNumber(string value)
@@ -207,11 +215,62 @@ public static class PlayerSpriteAnimationGenerator
             SetReference(controllerComponent, "animator", animator);
         }
 
+        ApplyCourtBackdrop();
+
         Directory.CreateDirectory(PrefabsPath);
         PrefabUtility.SaveAsPrefabAssetAndConnect(player, PlayerPrefabPath, InteractionMode.AutomatedAction);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
+    }
+
+    private static void ApplyCourtBackdrop()
+    {
+        if (!File.Exists(MapPath))
+        {
+            return;
+        }
+
+        ConfigureSingleSpriteImporter(MapPath, 100f);
+        var mapSprite = AssetDatabase.LoadAssetAtPath<Sprite>(MapPath);
+        if (mapSprite == null)
+        {
+            return;
+        }
+
+        var backdrop = GameObject.Find("CourtBackdrop");
+        if (backdrop == null)
+        {
+            backdrop = new GameObject("CourtBackdrop");
+        }
+
+        var renderer = backdrop.GetComponent<SpriteRenderer>();
+        if (renderer == null)
+        {
+            renderer = backdrop.AddComponent<SpriteRenderer>();
+        }
+
+        renderer.sprite = mapSprite;
+        renderer.color = Color.white;
+        renderer.sortingOrder = -20;
+        backdrop.transform.position = new Vector3(0f, 1.9f, 1f);
+        backdrop.transform.localScale = new Vector3(18f, 8f, 1f);
+    }
+
+    private static void ConfigureSingleSpriteImporter(string path, float pixelsPerUnit)
+    {
+        var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+        if (importer == null)
+        {
+            return;
+        }
+
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Single;
+        importer.spritePixelsPerUnit = pixelsPerUnit;
+        importer.filterMode = FilterMode.Bilinear;
+        importer.textureCompression = TextureImporterCompression.Uncompressed;
+        importer.SaveAndReimport();
     }
 
     private static AnimatorController CreateController(AnimationClip idle, AnimationClip run, AnimationClip backstep, AnimationClip jump, AnimationClip jSwing, AnimationClip kSmash)
