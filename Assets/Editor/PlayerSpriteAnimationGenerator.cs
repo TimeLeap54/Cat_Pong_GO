@@ -14,6 +14,9 @@ public static class PlayerSpriteAnimationGenerator
     private const string AnimationsPath = "Assets/Generated/PlayerAnimations";
     private const string ControllerPath = AnimationsPath + "/PlayerCat.controller";
     private const float FramePixelsPerUnit = 170f;
+    private const int NormalizedFrameWidth = 340;
+    private const int NormalizedFrameHeight = 255;
+    private const int PivotFootY = 28;
 
     [MenuItem("Tools/CatPong/Generate Player Sprite Animations")]
     public static void Generate()
@@ -137,10 +140,12 @@ public static class PlayerSpriteAnimationGenerator
             RemoveDisconnectedSpriteFragments(frame);
             ClearLeftEdgeArtifacts(frame, frameWidth > 300 ? 64 : 0);
             frame.Apply();
+            var normalizedFrame = NormalizeFrameCanvas(frame);
+            UnityEngine.Object.DestroyImmediate(frame);
 
             var framePath = $"{FramesPath}/{clipName}_{i}.png";
-            File.WriteAllBytes(framePath, frame.EncodeToPNG());
-            UnityEngine.Object.DestroyImmediate(frame);
+            File.WriteAllBytes(framePath, normalizedFrame.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(normalizedFrame);
 
             AssetDatabase.ImportAsset(framePath);
             ConfigureFrameImporter(framePath);
@@ -149,6 +154,88 @@ public static class PlayerSpriteAnimationGenerator
 
         UnityEngine.Object.DestroyImmediate(source);
         return sprites;
+    }
+
+    private static Texture2D NormalizeFrameCanvas(Texture2D source)
+    {
+        var bounds = FindAlphaBounds(source);
+        var normalized = new Texture2D(NormalizedFrameWidth, NormalizedFrameHeight, TextureFormat.RGBA32, false);
+        var emptyPixels = new Color32[NormalizedFrameWidth * NormalizedFrameHeight];
+        for (var i = 0; i < emptyPixels.Length; i++)
+        {
+            emptyPixels[i] = Color.clear;
+        }
+
+        normalized.SetPixels32(emptyPixels);
+
+        if (bounds.width <= 0 || bounds.height <= 0)
+        {
+            normalized.Apply();
+            return normalized;
+        }
+
+        var sourcePixels = source.GetPixels32();
+        var normalizedPixels = normalized.GetPixels32();
+        var sourceCenterX = bounds.xMin + bounds.width * 0.5f;
+        var offsetX = Mathf.RoundToInt(NormalizedFrameWidth * 0.5f - sourceCenterX);
+        var offsetY = PivotFootY - bounds.yMin;
+
+        for (var y = bounds.yMin; y < bounds.yMax; y++)
+        {
+            for (var x = bounds.xMin; x < bounds.xMax; x++)
+            {
+                var color = sourcePixels[y * source.width + x];
+                if (color.a < 16)
+                {
+                    continue;
+                }
+
+                var targetX = x + offsetX;
+                var targetY = y + offsetY;
+                if (targetX < 0 || targetY < 0 || targetX >= NormalizedFrameWidth || targetY >= NormalizedFrameHeight)
+                {
+                    continue;
+                }
+
+                normalizedPixels[targetY * NormalizedFrameWidth + targetX] = color;
+            }
+        }
+
+        normalized.SetPixels32(normalizedPixels);
+        normalized.Apply();
+        return normalized;
+    }
+
+    private static RectInt FindAlphaBounds(Texture2D texture)
+    {
+        var pixels = texture.GetPixels32();
+        var minX = texture.width;
+        var minY = texture.height;
+        var maxX = -1;
+        var maxY = -1;
+
+        for (var y = 0; y < texture.height; y++)
+        {
+            for (var x = 0; x < texture.width; x++)
+            {
+                if (pixels[y * texture.width + x].a < 16)
+                {
+                    continue;
+                }
+
+                minX = Mathf.Min(minX, x);
+                minY = Mathf.Min(minY, y);
+                maxX = Mathf.Max(maxX, x);
+                maxY = Mathf.Max(maxY, y);
+            }
+        }
+
+        if (maxX < minX || maxY < minY)
+        {
+            return new RectInt(0, 0, 0, 0);
+        }
+
+        return new RectInt(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
     private static void ClearLeftEdgeArtifacts(Texture2D texture, int clearWidth)
@@ -308,6 +395,11 @@ public static class PlayerSpriteAnimationGenerator
         importer.spritePixelsPerUnit = FramePixelsPerUnit;
         importer.filterMode = FilterMode.Point;
         importer.textureCompression = TextureImporterCompression.Uncompressed;
+        var settings = new TextureImporterSettings();
+        importer.ReadTextureSettings(settings);
+        settings.spriteAlignment = (int)SpriteAlignment.Custom;
+        settings.spritePivot = new Vector2(0.5f, PivotFootY / (float)NormalizedFrameHeight);
+        importer.SetTextureSettings(settings);
         importer.SaveAndReimport();
     }
 
