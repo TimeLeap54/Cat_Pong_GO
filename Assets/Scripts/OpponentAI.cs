@@ -15,7 +15,9 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private float homeX = 5.7f;
     [SerializeField] private float predictionTime = 0.52f;
     [SerializeField] private float chaseBehindPadding = 0.35f;
-    [SerializeField] private float behindChaseSpeedMultiplier = 2.45f;
+    [SerializeField] private float behindChaseSpeedMultiplier = 1.45f;
+    [SerializeField] private float moveAcceleration = 11f;
+    [SerializeField] private float moveDeceleration = 15f;
     [SerializeField] private float emergencyThinkDistance = 0.35f;
     [SerializeField] private float emergencyTargetLead = 0.85f;
     [SerializeField] private float jumpForce = 6.2f;
@@ -106,7 +108,9 @@ public class OpponentAI : MonoBehaviour
 
         var delta = targetX - body.position.x;
         var speedMultiplier = IsBallBehind() ? behindChaseSpeedMultiplier : 1f;
-        var speed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed * speedMultiplier : 0f;
+        var targetSpeed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed * speedMultiplier : 0f;
+        var acceleration = Mathf.Abs(targetSpeed) > 0.01f ? moveAcceleration : moveDeceleration;
+        var speed = Mathf.MoveTowards(body.velocity.x, targetSpeed, acceleration * Time.fixedDeltaTime);
         body.velocity = new Vector2(speed, body.velocity.y);
         animator?.SetFloat(MoveXHash, speed);
         animator?.SetBool(GroundedHash, grounded);
@@ -188,10 +192,11 @@ public class OpponentAI : MonoBehaviour
         {
             if (hit.TryGetComponent(out BallController ballController) && !ballController.IsHeldForServe)
             {
-                var power = Mathf.Lerp(8.5f, 12.5f, profile.aggression);
+                var power = Mathf.Lerp(6.4f, 9.2f, profile.aggression);
                 var vertical = Mathf.Lerp(0.55f, 0.95f, profile.hitAccuracy);
                 var error = Random.Range(-0.7f, 0.7f) * (1f - profile.hitAccuracy);
-                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent);
+                var hitStyle = grounded ? PawHitStyle.Rally : PawHitStyle.Smash;
+                ballController.Hit(new Vector2(-1f, vertical + error).normalized * power, BallTouchSide.Opponent, hitStyle);
                 animator?.SetTrigger(grounded ? JSwingHash : KSmashHash);
                 nextSwingTime = Time.time + 0.28f;
                 return true;

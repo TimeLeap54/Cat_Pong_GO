@@ -269,7 +269,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 52
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -668,7 +668,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sfxSource: {fileID: 0}
   musicSource: {fileID: 0}
-  hitClip: {fileID: 8300000, guid: da6097523e649ef46a64227321bf5042, type: 2}
+  hitClip: {fileID: 8300000, guid: da57409937e45da46bc04061747763df, type: 3}
+  softPawClip: {fileID: 8300000, guid: dbcaa6eb93ffcc047a24e7f6c3b5a51e, type: 3}
+  smashPawClip: {fileID: 8300000, guid: 9f8301ed48f3c3f48be978371c24e420, type: 3}
+  servePawClip: {fileID: 8300000, guid: 3713d1158eae76244bd6679b5619fc44, type: 3}
+  wallStepClip: {fileID: 8300000, guid: 8c6e643d79ef28644a4417380d53ff40, type: 3}
   scoreClip: {fileID: 8300000, guid: d145a5cc6e823de4fb39ae1bf7ae5e48, type: 2}
   buttonClip: {fileID: 8300000, guid: e8e7bbfa0857c814899ce81d158a3c7a, type: 2}
   winClip: {fileID: 8300000, guid: 046cc70b3506304499fb93a95fdbbe74, type: 2}

@@ -25,8 +25,8 @@ Transform:
   m_GameObject: {fileID: 1898594457797004575}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.62, y: 0.32, z: 0}
-  m_LocalScale: {x: 1.1111112, y: 0.6896551, z: 1}
+  m_LocalPosition: {x: 0.52, y: 0.34, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7978744317166844751}
@@ -57,7 +57,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.48, y: 0.04, z: 0}
-  m_LocalScale: {x: 1.1111112, y: 0.6896551, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7978744317166844751}
@@ -72,10 +72,10 @@ GameObject:
   m_Component:
   - component: {fileID: 7978744317166844751}
   - component: {fileID: 8312946472376289852}
-  - component: {fileID: 7879934345755334510}
   - component: {fileID: 3693327194769812349}
   - component: {fileID: 5715197582788920712}
   - component: {fileID: 8510321909272600978}
+  - component: {fileID: 226858095884832023}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -153,51 +153,6 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!61 &7879934345755334510
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6231269968853342189}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.38}
-    oldSize: {x: 1.1941177, y: 1.4647058}
-    newSize: {x: 1.1941177, y: 1.4647058}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  serializedVersion: 2
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
 --- !u!50 &3693327194769812349
 Rigidbody2D:
   serializedVersion: 4
@@ -237,29 +192,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9262ea8654655fd4da433d438b58c231, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 7
+  moveSpeed: 4.6
+  moveAcceleration: 20
+  moveDeceleration: 28
+  airControlMultiplier: 0.78
   jumpForce: 7.25
   minX: -8.2
   maxX: -0.8
   swingPoint: {fileID: 493182386675070460}
-  swingBoxSize: {x: 3.15, y: 3.35}
-  spikeSwingOffset: {x: 0.12, y: 0.72}
-  spikeSwingBoxSize: {x: 2.45, y: 2.2}
-  dropSwingDirection: {x: 1, y: 0.86}
-  normalLiftSwingDirection: {x: 1, y: 0.72}
-  strongLiftSwingDirection: {x: 1, y: 0.56}
-  dropTapTime: 0.08
-  strongHoldTime: 0.45
-  dropSwingPower: 6.1
-  liftSwingPower: 9.8
-  strongLiftSwingPower: 11.2
-  spikeSwingPower: 12
-  upwardServeVelocity: {x: 8.6, y: 5.8}
-  spikeServeVelocity: {x: 10.4, y: -0.65}
-  minServePowerMultiplier: 0.78
-  maxServePowerMultiplier: 1.35
+  swingBoxSize: {x: 2.2, y: 2.3}
+  spikeSwingOffset: {x: 0.08, y: 0.82}
+  spikeSwingBoxSize: {x: 1.9, y: 1.75}
+  jFullChargeTime: 0.9
+  minLiftSwingPower: 4.8
+  maxLiftSwingPower: 9.4
+  highLiftRatio: 1.02
+  lowLiftRatio: 0.46
+  verticalAimInfluence: 0.28
+  spikeSwingPower: 8.4
+  chargedSpikePower: 10.8
+  smashHitsToCharge: 3
+  smashChainWindow: 6
+  smashRecoilPerLevel: {x: -0.35, y: 0.12}
+  upwardServeVelocity: {x: 7.3, y: 4.9}
+  spikeServeVelocity: {x: 8.8, y: -0.35}
+  minServePowerMultiplier: 0.76
+  maxServePowerMultiplier: 1.18
   fullChargeTime: 0.9
   swingCooldown: 0.22
+  swingInputBuffer: 0.14
   serveBall: {fileID: 0}
   animator: {fileID: 8510321909272600978}
   groundCheck: {fileID: 8910415588364735546}
@@ -269,6 +230,13 @@ MonoBehaviour:
     m_Bits: 1
   maxJumpCount: 2
   jumpGroundLockout: 0.12
+  wallContactDistance: 0.12
+  wallSlideSpeed: 2.4
+  wallKickVelocity: {x: 5.2, y: 7.6}
+  wallKickControlLock: 0.16
+  serveTossDuration: 0.3
+  serveTossHeight: 0.72
+  serveSwingLeadTime: 0.16
 --- !u!95 &8510321909272600978
 Animator:
   serializedVersion: 5
@@ -290,6 +258,41 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!70 &226858095884832023
+CapsuleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6231269968853342189}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: -0.14}
+  m_Size: {x: 0.72, y: 1.28}
+  m_Direction: 0
 --- !u!1 &8259572840010353035
 GameObject:
   m_ObjectHideFlags: 0
@@ -315,8 +318,8 @@ Transform:
   m_GameObject: {fileID: 8259572840010353035}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.78, z: 0}
-  m_LocalScale: {x: 1.1111112, y: 0.6896551, z: 1}
+  m_LocalPosition: {x: 0, y: -0.8, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7978744317166844751}

@@ -6,14 +6,15 @@ public class BallController : MonoBehaviour
 {
     [SerializeField] private Transform serveAnchor;
     [SerializeField] private Vector2 serveOffset = new Vector2(0.28f, 0.08f);
-    [SerializeField] private float maxSpeed = 14f;
-    [SerializeField] private float minHorizontalSpeed = 2.2f;
+    [SerializeField] private float maxSpeed = 10.5f;
+    [SerializeField] private float minHorizontalSpeed = 1.2f;
     [SerializeField] private float netDamping = 0.62f;
-    [SerializeField] private float netHorizontalPush = 3.2f;
+    [SerializeField] private float netHorizontalPush = 2.3f;
     [SerializeField] private float stuckSpeedThreshold = 0.55f;
 
     private Rigidbody2D body;
     private Collider2D ballCollider;
+    private SpriteRenderer ballRenderer;
     private Vector3 startPosition;
     private RigidbodyType2D defaultBodyType;
     private float defaultGravityScale;
@@ -24,6 +25,10 @@ public class BallController : MonoBehaviour
     private bool groundTouchPending;
     private Vector2 pendingGroundTouchPosition;
     private bool sideWallTouchPending;
+    private bool serveTossActive;
+    private float serveTossStartedAt;
+    private float serveTossDuration;
+    private float serveTossHeight;
     private readonly List<Collider2D> ignoredBodyColliders = new List<Collider2D>();
 
     public bool IsHeldForServe { get; private set; }
@@ -35,6 +40,7 @@ public class BallController : MonoBehaviour
         UpgradeSerializedDefaults();
         body = GetComponent<Rigidbody2D>();
         ballCollider = GetComponent<Collider2D>();
+        ballRenderer = GetComponent<SpriteRenderer>();
         startPosition = transform.position;
         defaultBodyType = body.bodyType;
         defaultGravityScale = body.gravityScale;
@@ -87,7 +93,14 @@ public class BallController : MonoBehaviour
             return;
         }
 
-        body.position = (Vector2)serveAnchor.position + serveOffset;
+        var tossOffset = 0f;
+        if (serveTossActive)
+        {
+            var progress = Mathf.Clamp01((Time.time - serveTossStartedAt) / Mathf.Max(serveTossDuration, 0.01f));
+            tossOffset = 4f * serveTossHeight * progress * (1f - progress);
+        }
+
+        body.position = (Vector2)serveAnchor.position + serveOffset + Vector2.up * tossOffset;
         body.velocity = Vector2.zero;
     }
 
@@ -123,11 +136,13 @@ public class BallController : MonoBehaviour
     public void BeginServe()
     {
         IsHeldForServe = true;
+        serveTossActive = false;
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
         body.velocity = Vector2.zero;
         body.angularVelocity = 0f;
         SetColliderEnabled(false);
+        SetRendererEnabled(false);
         ResetRallyState();
 
         if (serveAnchor == null)
@@ -141,20 +156,47 @@ public class BallController : MonoBehaviour
 
     public void LaunchServe(Vector2 velocity)
     {
-        Hit(velocity, BallTouchSide.Player);
+        Hit(velocity, BallTouchSide.Player, PawHitStyle.Serve);
+    }
+
+    public void LaunchServe(Vector2 velocity, PawHitStyle hitStyle)
+    {
+        Hit(velocity, BallTouchSide.Player, hitStyle);
+    }
+
+    public void BeginServeToss(float duration, float height)
+    {
+        if (!IsHeldForServe)
+        {
+            return;
+        }
+
+        serveTossActive = true;
+        serveTossStartedAt = Time.time;
+        serveTossDuration = Mathf.Max(duration, 0.01f);
+        serveTossHeight = Mathf.Max(0f, height);
+        SetRendererEnabled(true);
     }
 
     public void Hit(Vector2 velocity)
     {
-        Hit(velocity, BallTouchSide.None);
+        Hit(velocity, BallTouchSide.None, PawHitStyle.Rally);
     }
 
     public void Hit(Vector2 velocity, BallTouchSide touchSide)
     {
+        var style = velocity.magnitude >= 11.5f ? PawHitStyle.Smash : PawHitStyle.Rally;
+        Hit(velocity, touchSide, style);
+    }
+
+    public void Hit(Vector2 velocity, BallTouchSide touchSide, PawHitStyle hitStyle)
+    {
         IsHeldForServe = false;
+        serveTossActive = false;
         body.bodyType = defaultBodyType;
         body.gravityScale = defaultGravityScale;
         SetColliderEnabled(true);
+        SetRendererEnabled(true);
 
         if (touchSide != BallTouchSide.None)
         {
@@ -171,7 +213,7 @@ public class BallController : MonoBehaviour
         body.velocity = SanitizeVelocity(velocity);
         if (AudioManager.Instance != null)
         {
-            AudioManager.Instance.PlayHit();
+            AudioManager.Instance.PlayPawHit(hitStyle);
         }
     }
 
@@ -221,6 +263,14 @@ public class BallController : MonoBehaviour
         {
             ballCollider.enabled = enabled;
             ApplyIgnoredBodyCollisions();
+        }
+    }
+
+    private void SetRendererEnabled(bool enabled)
+    {
+        if (ballRenderer != null)
+        {
+            ballRenderer.enabled = enabled;
         }
     }
 
@@ -324,4 +374,12 @@ public class BallController : MonoBehaviour
         body.velocity = SanitizeVelocity(velocity);
         body.position += new Vector2(side * 0.08f, 0.04f);
     }
+}
+
+public enum PawHitStyle
+{
+    Soft,
+    Rally,
+    Smash,
+    Serve
 }
