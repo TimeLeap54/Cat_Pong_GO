@@ -43,12 +43,12 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 1
-  alignment: 0
-  spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 100
+  spriteMeshType: 0
+  alignment: 9
+  spritePivot: {x: 0.5, y: 0.12}
+  spritePixelsToUnits: 170
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -69,10 +69,10 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 3
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -121,7 +121,175 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_0
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 0
+        width: 226
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee8918a2000000000800000000000000
+      internalID: 713136366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_1
+      rect:
+        serializedVersion: 2
+        x: 257
+        y: 0
+        width: 227
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48812583000000000800000000000000
+      internalID: 944904324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_2
+      rect:
+        serializedVersion: 2
+        x: 510
+        y: 0
+        width: 220
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa1ac352000000000800000000000000
+      internalID: 624730538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_3
+      rect:
+        serializedVersion: 2
+        x: 758
+        y: 0
+        width: 219
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b3799a44000000000800000000000000
+      internalID: 1151964987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_4
+      rect:
+        serializedVersion: 2
+        x: 1002
+        y: 0
+        width: 241
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a95bb987000000000800000000000000
+      internalID: 2023470490
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_5
+      rect:
+        serializedVersion: 2
+        x: 1276
+        y: 0
+        width: 218
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4cc1cbaaffffffff0800000000000000
+      internalID: -1430512444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_6
+      rect:
+        serializedVersion: 2
+        x: 1520
+        y: 0
+        width: 239
+        height: 255
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1ebd22cffffffff0800000000000000
+      internalID: -1037189605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: cat_tennis_JSwing_6f_7
+      rect:
+        serializedVersion: 2
+        x: 1787
+        y: 1
+        width: 224
+        height: 254
+      alignment: 9
+      pivot: {x: 0.5, y: 0.12}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca8241bcffffffff0800000000000000
+      internalID: -887871316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     physicsShape: []
     bones: []
@@ -132,7 +300,15 @@ TextureImporter:
     edges: []
     weights: []
     secondaryTextures: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      cat_tennis_JSwing_6f_0: 713136366
+      cat_tennis_JSwing_6f_1: 944904324
+      cat_tennis_JSwing_6f_2: 624730538
+      cat_tennis_JSwing_6f_3: 1151964987
+      cat_tennis_JSwing_6f_4: 2023470490
+      cat_tennis_JSwing_6f_5: -1430512444
+      cat_tennis_JSwing_6f_6: -1037189605
+      cat_tennis_JSwing_6f_7: -887871316
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

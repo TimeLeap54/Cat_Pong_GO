@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
+using UnityEditor.U2D.Sprites;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public static class PlayerSpriteAnimationGenerator
 {
     private const string ArtPath = "Assets/Art";
-    private const string FramesPath = "Assets/Generated/PlayerFrames";
     private const string AnimationsPath = "Assets/Generated/PlayerAnimations";
+    private const string PrefabsPath = "Assets/Generated/Prefabs";
     private const string ControllerPath = AnimationsPath + "/PlayerCat.controller";
-    private const float FramePixelsPerUnit = 170f;
-    private const int NormalizedFrameWidth = 340;
-    private const int NormalizedFrameHeight = 255;
-    private const int PivotFootY = 28;
+    private const string PlayerPrefabPath = PrefabsPath + "/Player.prefab";
+    private const float PixelsPerUnit = 170f;
+    private static readonly Vector2 StablePivot = new Vector2(0.5f, 0.12f);
 
     [MenuItem("Tools/CatPong/Generate Player Sprite Animations")]
     public static void Generate()
@@ -29,7 +30,6 @@ public static class PlayerSpriteAnimationGenerator
 
     public static AnimatorController GenerateAssets()
     {
-        Directory.CreateDirectory(FramesPath);
         Directory.CreateDirectory(AnimationsPath);
 
         var idle = CreateClip("PlayerIdle", "cat_tennis_idle_6f.png", 8f, true);
@@ -40,6 +40,122 @@ public static class PlayerSpriteAnimationGenerator
         var kSmash = CreateClip("PlayerKSmash", "cat_tennis_KSmash_6f.png", 18f, false);
 
         return CreateController(idle, run, backstep, jump, jSwing, kSmash);
+    }
+
+    private static AnimationClip CreateClip(string clipName, string sheetName, float frameRate, bool loop)
+    {
+        var sprites = LoadSpritesFromMultipleSheet($"{ArtPath}/{sheetName}");
+        if (sprites.Count == 0)
+        {
+            throw new InvalidOperationException($"No sub-sprites found in {sheetName}. Set Sprite Mode to Multiple and slice it first.");
+        }
+
+        var clipPath = $"{AnimationsPath}/{clipName}.anim";
+        AssetDatabase.DeleteAsset(clipPath);
+
+        var clip = new AnimationClip
+        {
+            frameRate = frameRate
+        };
+
+        var binding = new EditorCurveBinding
+        {
+            type = typeof(SpriteRenderer),
+            path = "",
+            propertyName = "m_Sprite"
+        };
+
+        var keyframes = new ObjectReferenceKeyframe[sprites.Count + 1];
+        for (var i = 0; i < sprites.Count; i++)
+        {
+            keyframes[i] = new ObjectReferenceKeyframe
+            {
+                time = i / frameRate,
+                value = sprites[i]
+            };
+        }
+
+        keyframes[^1] = new ObjectReferenceKeyframe
+        {
+            time = sprites.Count / frameRate,
+            value = sprites[^1]
+        };
+
+        AnimationUtility.SetObjectReferenceCurve(clip, binding, keyframes);
+        SetLoopTime(clip, loop);
+        AssetDatabase.CreateAsset(clip, clipPath);
+        return clip;
+    }
+
+    private static List<Sprite> LoadSpritesFromMultipleSheet(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException($"Missing player animation sheet: {path}");
+        }
+
+        ConfigureSheetImporter(path);
+        var sprites = AssetDatabase.LoadAllAssetRepresentationsAtPath(path)
+            .OfType<Sprite>()
+            .OrderBy(sprite => ExtractTrailingNumber(sprite.name))
+            .ThenBy(sprite => sprite.name, StringComparer.Ordinal)
+            .ToList();
+
+        return sprites;
+    }
+
+    private static void ConfigureSheetImporter(string path)
+    {
+        var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+        if (importer == null)
+        {
+            return;
+        }
+
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Multiple;
+        importer.spritePixelsPerUnit = PixelsPerUnit;
+        importer.filterMode = FilterMode.Bilinear;
+        importer.textureCompression = TextureImporterCompression.Uncompressed;
+
+        var settings = new TextureImporterSettings();
+        importer.ReadTextureSettings(settings);
+        settings.spriteAlignment = (int)SpriteAlignment.Custom;
+        settings.spritePivot = StablePivot;
+        importer.SetTextureSettings(settings);
+
+        var dataProvider = AssetImporter.GetAtPath(path) as ISpriteEditorDataProvider;
+        if (dataProvider != null)
+        {
+            dataProvider.InitSpriteEditorDataProvider();
+            var spriteRects = dataProvider.GetSpriteRects();
+            for (var i = 0; i < spriteRects.Length; i++)
+            {
+                spriteRects[i].alignment = SpriteAlignment.Custom;
+                spriteRects[i].pivot = StablePivot;
+            }
+
+            dataProvider.SetSpriteRects(spriteRects);
+            dataProvider.Apply();
+        }
+
+        importer.SaveAndReimport();
+    }
+
+    private static int ExtractTrailingNumber(string value)
+    {
+        var index = value.Length - 1;
+        while (index >= 0 && char.IsDigit(value[index]))
+        {
+            index--;
+        }
+
+        if (index == value.Length - 1)
+        {
+            return 0;
+        }
+
+        return int.TryParse(value[(index + 1)..], out var number) ? number : 0;
     }
 
     private static void ApplyToMatchScene(AnimatorController controller)
@@ -57,8 +173,15 @@ public static class PlayerSpriteAnimationGenerator
             renderer = player.AddComponent<SpriteRenderer>();
         }
 
-        renderer.sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{FramesPath}/PlayerIdle_0.png");
+        var idleSprites = LoadSpritesFromMultipleSheet($"{ArtPath}/cat_tennis_idle_6f.png");
+        if (idleSprites.Count > 0)
+        {
+            renderer.sprite = idleSprites[0];
+        }
+
+        renderer.drawMode = SpriteDrawMode.Simple;
         renderer.sortingOrder = 2;
+        player.transform.localScale = Vector3.one;
 
         var animator = player.GetComponent<Animator>();
         if (animator == null)
@@ -74,274 +197,11 @@ public static class PlayerSpriteAnimationGenerator
             SetReference(controllerComponent, "animator", animator);
         }
 
+        Directory.CreateDirectory(PrefabsPath);
+        PrefabUtility.SaveAsPrefabAssetAndConnect(player, PlayerPrefabPath, InteractionMode.AutomatedAction);
+
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-    }
-
-    private static AnimationClip CreateClip(string clipName, string sheetName, float frameRate, bool loop)
-    {
-        var frameSprites = SliceSheet(clipName, $"{ArtPath}/{sheetName}");
-        var clipPath = $"{AnimationsPath}/{clipName}.anim";
-        AssetDatabase.DeleteAsset(clipPath);
-
-        var clip = new AnimationClip
-        {
-            frameRate = frameRate
-        };
-
-        var binding = new EditorCurveBinding
-        {
-            type = typeof(SpriteRenderer),
-            path = "",
-            propertyName = "m_Sprite"
-        };
-
-        var keyframes = new ObjectReferenceKeyframe[frameSprites.Count + 1];
-        for (var i = 0; i < frameSprites.Count; i++)
-        {
-            keyframes[i] = new ObjectReferenceKeyframe
-            {
-                time = i / frameRate,
-                value = frameSprites[i]
-            };
-        }
-
-        keyframes[^1] = new ObjectReferenceKeyframe
-        {
-            time = frameSprites.Count / frameRate,
-            value = frameSprites[^1]
-        };
-
-        AnimationUtility.SetObjectReferenceCurve(clip, binding, keyframes);
-        SetLoopTime(clip, loop);
-        AssetDatabase.CreateAsset(clip, clipPath);
-        return clip;
-    }
-
-    private static List<Sprite> SliceSheet(string clipName, string sheetPath)
-    {
-        if (!File.Exists(sheetPath))
-        {
-            throw new FileNotFoundException($"Missing player animation sheet: {sheetPath}");
-        }
-
-        var source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-        source.LoadImage(File.ReadAllBytes(sheetPath));
-
-        var frameCount = 6;
-        var frameWidth = Mathf.FloorToInt(source.width / (float)frameCount);
-        var frameHeight = source.height;
-        var sprites = new List<Sprite>();
-
-        for (var i = 0; i < frameCount; i++)
-        {
-            var frame = new Texture2D(frameWidth, frameHeight, TextureFormat.RGBA32, false);
-            frame.SetPixels(source.GetPixels(i * frameWidth, 0, frameWidth, frameHeight));
-            RemoveDisconnectedSpriteFragments(frame);
-            ClearLeftEdgeArtifacts(frame, frameWidth > 300 ? 64 : 0);
-            frame.Apply();
-            var normalizedFrame = NormalizeFrameCanvas(frame);
-            UnityEngine.Object.DestroyImmediate(frame);
-
-            var framePath = $"{FramesPath}/{clipName}_{i}.png";
-            File.WriteAllBytes(framePath, normalizedFrame.EncodeToPNG());
-            UnityEngine.Object.DestroyImmediate(normalizedFrame);
-
-            AssetDatabase.ImportAsset(framePath);
-            ConfigureFrameImporter(framePath);
-            sprites.Add(AssetDatabase.LoadAssetAtPath<Sprite>(framePath));
-        }
-
-        UnityEngine.Object.DestroyImmediate(source);
-        return sprites;
-    }
-
-    private static Texture2D NormalizeFrameCanvas(Texture2D source)
-    {
-        var bounds = FindAlphaBounds(source);
-        var normalized = new Texture2D(NormalizedFrameWidth, NormalizedFrameHeight, TextureFormat.RGBA32, false);
-        var emptyPixels = new Color32[NormalizedFrameWidth * NormalizedFrameHeight];
-        for (var i = 0; i < emptyPixels.Length; i++)
-        {
-            emptyPixels[i] = Color.clear;
-        }
-
-        normalized.SetPixels32(emptyPixels);
-
-        if (bounds.width <= 0 || bounds.height <= 0)
-        {
-            normalized.Apply();
-            return normalized;
-        }
-
-        var sourcePixels = source.GetPixels32();
-        var normalizedPixels = normalized.GetPixels32();
-        var sourceCenterX = bounds.xMin + bounds.width * 0.5f;
-        var offsetX = Mathf.RoundToInt(NormalizedFrameWidth * 0.5f - sourceCenterX);
-        var offsetY = PivotFootY - bounds.yMin;
-
-        for (var y = bounds.yMin; y < bounds.yMax; y++)
-        {
-            for (var x = bounds.xMin; x < bounds.xMax; x++)
-            {
-                var color = sourcePixels[y * source.width + x];
-                if (color.a < 16)
-                {
-                    continue;
-                }
-
-                var targetX = x + offsetX;
-                var targetY = y + offsetY;
-                if (targetX < 0 || targetY < 0 || targetX >= NormalizedFrameWidth || targetY >= NormalizedFrameHeight)
-                {
-                    continue;
-                }
-
-                normalizedPixels[targetY * NormalizedFrameWidth + targetX] = color;
-            }
-        }
-
-        normalized.SetPixels32(normalizedPixels);
-        normalized.Apply();
-        return normalized;
-    }
-
-    private static RectInt FindAlphaBounds(Texture2D texture)
-    {
-        var pixels = texture.GetPixels32();
-        var minX = texture.width;
-        var minY = texture.height;
-        var maxX = -1;
-        var maxY = -1;
-
-        for (var y = 0; y < texture.height; y++)
-        {
-            for (var x = 0; x < texture.width; x++)
-            {
-                if (pixels[y * texture.width + x].a < 16)
-                {
-                    continue;
-                }
-
-                minX = Mathf.Min(minX, x);
-                minY = Mathf.Min(minY, y);
-                maxX = Mathf.Max(maxX, x);
-                maxY = Mathf.Max(maxY, y);
-            }
-        }
-
-        if (maxX < minX || maxY < minY)
-        {
-            return new RectInt(0, 0, 0, 0);
-        }
-
-        return new RectInt(minX, minY, maxX - minX + 1, maxY - minY + 1);
-    }
-
-    private static void ClearLeftEdgeArtifacts(Texture2D texture, int clearWidth)
-    {
-        if (clearWidth <= 0)
-        {
-            return;
-        }
-
-        var pixels = texture.GetPixels32();
-        var width = texture.width;
-        var height = texture.height;
-        var maxX = Mathf.Min(clearWidth, width);
-
-        for (var y = 0; y < height; y++)
-        {
-            for (var x = 0; x < maxX; x++)
-            {
-                pixels[y * width + x] = Color.clear;
-            }
-        }
-
-        texture.SetPixels32(pixels);
-    }
-
-    private static void RemoveDisconnectedSpriteFragments(Texture2D texture)
-    {
-        var width = texture.width;
-        var height = texture.height;
-        var pixels = texture.GetPixels32();
-        var visited = new bool[pixels.Length];
-        var components = new List<List<int>>();
-
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            if (visited[i] || pixels[i].a < 16)
-            {
-                continue;
-            }
-
-            var component = new List<int>();
-            var queue = new Queue<int>();
-            queue.Enqueue(i);
-            visited[i] = true;
-
-            while (queue.Count > 0)
-            {
-                var current = queue.Dequeue();
-                component.Add(current);
-                var x = current % width;
-                var y = current / width;
-                TryQueue(x - 1, y, width, height, pixels, visited, queue);
-                TryQueue(x + 1, y, width, height, pixels, visited, queue);
-                TryQueue(x, y - 1, width, height, pixels, visited, queue);
-                TryQueue(x, y + 1, width, height, pixels, visited, queue);
-            }
-
-            components.Add(component);
-        }
-
-        if (components.Count <= 1)
-        {
-            return;
-        }
-
-        var mainComponent = components[0];
-        foreach (var component in components)
-        {
-            if (component.Count > mainComponent.Count)
-            {
-                mainComponent = component;
-            }
-        }
-
-        var keep = new bool[pixels.Length];
-        foreach (var index in mainComponent)
-        {
-            keep[index] = true;
-        }
-
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            if (!keep[i])
-            {
-                pixels[i] = Color.clear;
-            }
-        }
-
-        texture.SetPixels32(pixels);
-    }
-
-    private static void TryQueue(int x, int y, int width, int height, Color32[] pixels, bool[] visited, Queue<int> queue)
-    {
-        if (x < 0 || y < 0 || x >= width || y >= height)
-        {
-            return;
-        }
-
-        var index = y * width + x;
-        if (visited[index] || pixels[index].a < 16)
-        {
-            return;
-        }
-
-        visited[index] = true;
-        queue.Enqueue(index);
     }
 
     private static AnimatorController CreateController(AnimationClip idle, AnimationClip run, AnimationClip backstep, AnimationClip jump, AnimationClip jSwing, AnimationClip kSmash)
@@ -385,22 +245,6 @@ public static class PlayerSpriteAnimationGenerator
         AddExitTransition(kSmashState, idleState, 0.92f);
 
         return controller;
-    }
-
-    private static void ConfigureFrameImporter(string path)
-    {
-        var importer = (TextureImporter)AssetImporter.GetAtPath(path);
-        importer.textureType = TextureImporterType.Sprite;
-        importer.spriteImportMode = SpriteImportMode.Single;
-        importer.spritePixelsPerUnit = FramePixelsPerUnit;
-        importer.filterMode = FilterMode.Point;
-        importer.textureCompression = TextureImporterCompression.Uncompressed;
-        var settings = new TextureImporterSettings();
-        importer.ReadTextureSettings(settings);
-        settings.spriteAlignment = (int)SpriteAlignment.Custom;
-        settings.spritePivot = new Vector2(0.5f, PivotFootY / (float)NormalizedFrameHeight);
-        importer.SetTextureSettings(settings);
-        importer.SaveAndReimport();
     }
 
     private static void SetLoopTime(AnimationClip clip, bool loop)
