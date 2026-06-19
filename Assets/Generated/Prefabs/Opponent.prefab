@@ -172,6 +172,8 @@ MonoBehaviour:
   chaseBehindPadding: 0.35
   emergencyThinkDistance: 0.35
   emergencyTargetLead: 0.85
+  moveAcceleration: 8.5
+  moveDeceleration: 12
   jumpForce: 6.2
   jumpCooldown: 0.45
   overheadJumpHeight: 1.15

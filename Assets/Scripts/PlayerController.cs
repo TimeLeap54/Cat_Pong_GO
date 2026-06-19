@@ -4,6 +4,9 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 3.8f;
+    [SerializeField] private float moveAcceleration = 12f;
+    [SerializeField] private float moveDeceleration = 17f;
+    [SerializeField, Range(0f, 1f)] private float airControlMultiplier = 0.72f;
     [SerializeField] private float jumpForce = 7.25f;
     [SerializeField] private float minX = -8.2f;
     [SerializeField] private float maxX = -0.8f;
@@ -78,6 +81,7 @@ public class PlayerController : MonoBehaviour
     private Vector2 bufferedSwingOffset;
     private Vector2 bufferedSwingBoxSize;
     private PawHitStyle bufferedHitStyle;
+    private bool bufferedNetSkim;
     private bool bufferedBuildsSmashRhythm;
     private int bufferedSmashLevel;
     private int smashRhythmHits;
@@ -233,7 +237,20 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            horizontalVelocity = Time.time < wallKickControlLockedUntil ? body.velocity.x : input * moveSpeed;
+            if (Time.time < wallKickControlLockedUntil)
+            {
+                horizontalVelocity = body.velocity.x;
+            }
+            else
+            {
+                var targetSpeed = input * moveSpeed;
+                var acceleration = Mathf.Abs(input) > 0.01f ? moveAcceleration : moveDeceleration;
+                if (!grounded)
+                {
+                    acceleration *= airControlMultiplier;
+                }
+                horizontalVelocity = Mathf.MoveTowards(body.velocity.x, targetSpeed, acceleration * Time.fixedDeltaTime);
+            }
         }
         if (Time.time >= wallKickControlLockedUntil && IsTouchingBackWall() && input < 0f)
         {
@@ -329,8 +346,9 @@ public class PlayerController : MonoBehaviour
         var liftRatio = Mathf.Lerp(highLiftRatio, lowLiftRatio, shapedCharge);
         liftRatio = Mathf.Clamp(liftRatio + liftAimInput * verticalAimInfluence, 0.16f, 1.28f);
         var hitStyle = charge < 0.18f ? PawHitStyle.Soft : charge > 0.82f ? PawHitStyle.Smash : PawHitStyle.Rally;
+        var netSkim = charge <= 0.28f && liftAimInput <= 0.25f;
         animator?.SetTrigger(JSwingHash);
-        Swing(new Vector2(1f, liftRatio).normalized * power, Vector2.zero, swingBoxSize, hitStyle);
+        Swing(new Vector2(1f, liftRatio).normalized * power, Vector2.zero, swingBoxSize, hitStyle, false, 0, netSkim);
     }
 
     private void UpdateGrounded()
@@ -366,13 +384,15 @@ public class PlayerController : MonoBehaviour
         Vector2 boxSize,
         PawHitStyle hitStyle,
         bool buildsSmashRhythm = false,
-        int smashLevel = 0)
+        int smashLevel = 0,
+        bool netSkim = false)
     {
         nextSwingTime = Time.time + swingCooldown;
         bufferedSwingVelocity = velocity;
         bufferedSwingOffset = pointOffset;
         bufferedSwingBoxSize = boxSize;
         bufferedHitStyle = hitStyle;
+        bufferedNetSkim = netSkim;
         bufferedBuildsSmashRhythm = buildsSmashRhythm;
         bufferedSmashLevel = smashLevel;
         swingWindowEndsAt = Time.time + swingInputBuffer;
@@ -400,7 +420,10 @@ public class PlayerController : MonoBehaviour
         {
             if (hit.TryGetComponent(out BallController ball))
             {
-                ball.Hit(bufferedSwingVelocity, BallTouchSide.Player, bufferedHitStyle);
+                var hitVelocity = bufferedNetSkim
+                    ? ball.CalculateNetSkimVelocity(Mathf.Max(5.4f, Mathf.Abs(bufferedSwingVelocity.x)), 0.07f)
+                    : bufferedSwingVelocity;
+                ball.Hit(hitVelocity, BallTouchSide.Player, bufferedHitStyle);
                 if (bufferedBuildsSmashRhythm)
                 {
                     CommitSmashRhythmHit();

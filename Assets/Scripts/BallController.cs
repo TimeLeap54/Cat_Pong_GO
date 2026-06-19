@@ -8,6 +8,10 @@ public class BallController : MonoBehaviour
     [SerializeField] private Vector2 serveOffset = new Vector2(0.28f, 0.08f);
     [SerializeField] private float maxSpeed = 8.2f;
     [SerializeField] private float minHorizontalSpeed = 0.4f;
+    [SerializeField] private float maxHorizontalSpeed = 7.2f;
+    [SerializeField] private float maxRiseSpeed = 6.2f;
+    [SerializeField] private float maxFallSpeed = 6.8f;
+    [SerializeField] private float netCordTopY = 0.05f;
     [SerializeField] private float netDamping = 0.62f;
     [SerializeField] private float netHorizontalPush = 2.3f;
     [SerializeField] private float stuckSpeedThreshold = 0.55f;
@@ -29,7 +33,6 @@ public class BallController : MonoBehaviour
     private float serveTossStartedAt;
     private float serveTossDuration;
     private float serveTossHeight;
-    private float flightSpeed;
     private readonly List<Collider2D> ignoredBodyColliders = new List<Collider2D>();
 
     public bool IsHeldForServe { get; private set; }
@@ -138,7 +141,6 @@ public class BallController : MonoBehaviour
     {
         IsHeldForServe = true;
         serveTossActive = false;
-        flightSpeed = 0f;
         body.bodyType = RigidbodyType2D.Kinematic;
         body.gravityScale = 0f;
         body.velocity = Vector2.zero;
@@ -213,7 +215,6 @@ public class BallController : MonoBehaviour
         }
 
         body.velocity = SanitizeVelocity(velocity);
-        flightSpeed = body.velocity.magnitude;
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayPawHit(hitStyle);
@@ -230,6 +231,19 @@ public class BallController : MonoBehaviour
 
         groundTouchPending = false;
         return true;
+    }
+
+    public Vector2 CalculateNetSkimVelocity(float horizontalSpeed, float clearance)
+    {
+        horizontalSpeed = Mathf.Clamp(Mathf.Abs(horizontalSpeed), minHorizontalSpeed, maxHorizontalSpeed);
+        var direction = transform.position.x <= 0f ? 1f : -1f;
+        var distanceToNet = Mathf.Abs(transform.position.x);
+        var travelTime = distanceToNet / Mathf.Max(horizontalSpeed, 0.01f);
+        var gravity = Physics2D.gravity.y * defaultGravityScale;
+        var targetY = netCordTopY + Mathf.Max(0.02f, clearance);
+        var verticalSpeed = (targetY - transform.position.y - 0.5f * gravity * travelTime * travelTime) / Mathf.Max(travelTime, 0.01f);
+        verticalSpeed = Mathf.Clamp(verticalSpeed, -0.5f, maxRiseSpeed);
+        return new Vector2(direction * horizontalSpeed, verticalSpeed);
     }
 
     public bool ConsumeDoubleTouchFault(out BallTouchSide faultSide)
@@ -308,7 +322,14 @@ public class BallController : MonoBehaviour
 
         if (collision.collider.CompareTag("Net"))
         {
-            DeflectFromNet();
+            if (collision.collider.name == "NetCord")
+            {
+                GrazeNetCord();
+            }
+            else
+            {
+                DeflectFromNet();
+            }
             return;
         }
 
@@ -338,7 +359,11 @@ public class BallController : MonoBehaviour
             return;
         }
 
-        if (body.velocity.magnitude < stuckSpeedThreshold)
+        if (collision.collider.name == "NetCord")
+        {
+            GrazeNetCord();
+        }
+        else if (body.velocity.magnitude < stuckSpeedThreshold)
         {
             DeflectFromNet();
         }
@@ -351,17 +376,18 @@ public class BallController : MonoBehaviour
             return Vector2.zero;
         }
 
-        return velocity.normalized * Mathf.Min(velocity.magnitude, maxSpeed);
+        var limited = Vector2.ClampMagnitude(velocity, maxSpeed);
+        limited.x = Mathf.Clamp(limited.x, -maxHorizontalSpeed, maxHorizontalSpeed);
+        limited.y = Mathf.Clamp(limited.y, -maxFallSpeed, maxRiseSpeed);
+        return limited;
     }
 
     private void ClampVelocity()
     {
-        if (body.velocity.sqrMagnitude <= 0.001f || flightSpeed <= 0.001f)
-        {
-            return;
-        }
-
-        body.velocity = body.velocity.normalized * Mathf.Min(flightSpeed, maxSpeed);
+        var velocity = body.velocity;
+        velocity.x = Mathf.Clamp(velocity.x, -maxHorizontalSpeed, maxHorizontalSpeed);
+        velocity.y = Mathf.Clamp(velocity.y, -maxFallSpeed, maxRiseSpeed);
+        body.velocity = velocity;
     }
 
     private void DeflectFromNet()
@@ -371,8 +397,15 @@ public class BallController : MonoBehaviour
         velocity.x = side * Mathf.Max(Mathf.Abs(velocity.x), netHorizontalPush);
         velocity.y = Mathf.Max(velocity.y, 1.25f);
         body.velocity = SanitizeVelocity(velocity);
-        flightSpeed = Mathf.Clamp(body.velocity.magnitude, minHorizontalSpeed, maxSpeed);
         body.position += new Vector2(side * 0.08f, 0.04f);
+    }
+
+    private void GrazeNetCord()
+    {
+        var direction = body.velocity.x >= 0f ? 1f : -1f;
+        var horizontal = Mathf.Max(minHorizontalSpeed, Mathf.Abs(body.velocity.x) * 0.68f);
+        body.velocity = new Vector2(direction * horizontal, Mathf.Clamp(body.velocity.y * 0.12f, 0.08f, 0.32f));
+        body.position += new Vector2(direction * 0.045f, 0.025f);
     }
 }
 

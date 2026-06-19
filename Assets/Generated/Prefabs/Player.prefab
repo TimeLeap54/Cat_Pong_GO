@@ -193,6 +193,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 3.8
+  moveAcceleration: 12
+  moveDeceleration: 17
+  airControlMultiplier: 0.72
   jumpForce: 7.25
   minX: -8.2
   maxX: -0.8

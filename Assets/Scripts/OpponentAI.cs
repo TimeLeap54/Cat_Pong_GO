@@ -17,6 +17,8 @@ public class OpponentAI : MonoBehaviour
     [SerializeField] private float chaseBehindPadding = 0.35f;
     [SerializeField] private float emergencyThinkDistance = 0.35f;
     [SerializeField] private float emergencyTargetLead = 0.85f;
+    [SerializeField] private float moveAcceleration = 8.5f;
+    [SerializeField] private float moveDeceleration = 12f;
     [SerializeField] private float jumpForce = 6.2f;
     [SerializeField] private float jumpCooldown = 0.45f;
     [SerializeField] private float overheadJumpHeight = 1.15f;
@@ -104,7 +106,9 @@ public class OpponentAI : MonoBehaviour
         UpdateEmergencyChaseTarget();
 
         var delta = targetX - body.position.x;
-        var speed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed : 0f;
+        var targetSpeed = Mathf.Abs(delta) > 0.15f ? Mathf.Sign(delta) * profile.moveSpeed : 0f;
+        var acceleration = Mathf.Abs(targetSpeed) > 0.01f ? moveAcceleration : moveDeceleration;
+        var speed = Mathf.MoveTowards(body.velocity.x, targetSpeed, acceleration * Time.fixedDeltaTime);
         body.velocity = new Vector2(speed, body.velocity.y);
         animator?.SetFloat(MoveXHash, speed);
         animator?.SetBool(GroundedHash, grounded);

@@ -68,6 +68,7 @@ Unity 2022.3.62f3 기반 2D URP 사이드뷰 테니스/핑퐁 MVP입니다.
 - `A/A`, `D/D` 빠르게 두 번 또는 `Shift + A/D`: 뒤·앞 대시
 - `Space`: 1회 점프, 외곽 벽에서 벽 스텝
 - `J` 또는 마우스 클릭: 홀드 시간으로 타격 힘 조절
+- `J` 짧은 탭: 네트 상단을 스치는 드롭샷 보정
 - `J + W/S`: 높은 로브와 낮은 샷 사이의 각도 조절
 - `K`: 스매시, 6초 안에 세 번 성공하면 세 번째 강스파이크
 
@@ -77,4 +78,5 @@ Unity 2022.3.62f3 기반 2D URP 사이드뷰 테니스/핑퐁 MVP입니다.
 - [14일 개발 일정](Docs/development_schedule_v0.1.md)
 - [진행 체크리스트](Docs/progress_checklist.md)
 - [Git 마일스톤과 복습 방법](Docs/milestones.md)
+- [Tennis Masters 벤치마크 기록](Docs/benchmark_tennis_masters.md)
 - [Day 5 AI 밸런스](Docs/Day5AIBalance.md)

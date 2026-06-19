@@ -165,6 +165,10 @@ MonoBehaviour:
   serveOffset: {x: 0.18, y: 0.08}
   maxSpeed: 8.2
   minHorizontalSpeed: 0.4
+  maxHorizontalSpeed: 7.2
+  maxRiseSpeed: 6.2
+  maxFallSpeed: 6.8
+  netCordTopY: 0.05
   netDamping: 0.62
   netHorizontalPush: 2.1
   stuckSpeedThreshold: 0.55
