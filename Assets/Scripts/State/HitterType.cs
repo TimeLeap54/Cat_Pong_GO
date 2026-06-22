@@ -1,9 +1,10 @@
 namespace CatTennis.Rebuild.State
 {
-    /// <summary>Identifies the last hitter without embedding player behavior.</summary>
+    /// <summary>Identifies a rule-approved hitter.</summary>
     public enum HitterType
     {
-        Undefined = 0
+        None = 0,
+        Player = 1,
+        Opponent = 2
     }
 }
-

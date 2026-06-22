@@ -1,9 +1,11 @@
 namespace CatTennis.Rebuild.State
 {
-    /// <summary>Represents the rally lifecycle without implementing transitions.</summary>
+    /// <summary>Represents the complete rule-level lifecycle of one point.</summary>
     public enum RallyState
     {
-        Undefined = 0
+        Idle = 0,
+        InFlight = 1,
+        ReceiverCourtBounced = 2,
+        Ended = 3
     }
 }
-

@@ -1,9 +1,10 @@
 namespace CatTennis.Rebuild.State
 {
-    /// <summary>Identifies a court side without embedding scoring rules.</summary>
+    /// <summary>Identifies the owner of a court side.</summary>
     public enum CourtSide
     {
-        Undefined = 0
+        None = 0,
+        Player = 1,
+        Opponent = 2
     }
 }
-
