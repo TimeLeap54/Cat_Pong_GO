@@ -2,7 +2,8 @@
     "name": "CatTennis.Rebuild.Tests.EditMode",
     "rootNamespace": "CatTennis.Rebuild.Tests",
     "references": [
-        "CatTennis.Rebuild"
+        "CatTennis.Rebuild",
+        "CatTennis.BallPhysics.Core"
     ],
     "includePlatforms": [
         "Editor"
