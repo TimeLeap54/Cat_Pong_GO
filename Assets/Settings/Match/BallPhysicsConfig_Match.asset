@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 040d9d63b7cfadb48a3b6086b6c5a02b, type: 3}
-  m_Name: BallPhysicsConfig_Phase3
+  m_Name: BallPhysicsConfig_Match
   m_EditorClassIdentifier: 
   gravity: -9.81
   ballRadius: 0.15

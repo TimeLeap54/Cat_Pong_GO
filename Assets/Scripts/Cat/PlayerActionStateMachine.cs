@@ -22,6 +22,15 @@ namespace CatTennis.Rebuild.Cat
         public SwingKind SwingKind { get; private set; }
         public long SwingId { get; private set; }
 
+        public void Reset()
+        {
+            LocomotionState = LocomotionState.Grounded;
+            SwingState = SwingState.Ready;
+            SwingKind = SwingKind.None;
+            swingTicksRemaining = 0;
+            waitingToLeaveGround = false;
+        }
+
         public PlayerActionFrame Step(PlayerInputFrame input, bool groundDetected)
         {
             AdvanceLocomotion(groundDetected);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using CatTennis.BallPhysics.Core;
 using CatTennis.Rebuild.Ball;
+using CatTennis.Rebuild.Cat;
 using CatTennis.Rebuild.Rules;
 using CatTennis.Rebuild.State;
 using UnityEngine;
@@ -18,6 +19,9 @@ namespace CatTennis.Rebuild.Flow
         [SerializeField] private MatchFlowManager matchFlowManager;
         [SerializeField] private ResetFlowController resetFlowController;
         [SerializeField] private bool startOnEnable;
+        [SerializeField] private PointLifecycleController lifecycle;
+        [SerializeField] private PlayerCatController playerController;
+        [SerializeField] private Vector2 playerResetPosition;
 
         private bool subscribed;
 
@@ -55,13 +59,30 @@ namespace CatTennis.Rebuild.Flow
 
         public void StartInitialPoint()
         {
+            if (lifecycle != null && lifecycle.State != PointLoopState.StartingPoint)
+            {
+                return;
+            }
+
             resetFlowController.RequestInitialPoint();
         }
 
         public void RetryMatch()
         {
             matchFlowManager.ResetMatch();
+            lifecycle?.BeginRetry();
             resetFlowController.RequestRetry();
+        }
+
+        public void SetLifecycle(PointLifecycleController pointLifecycle)
+        {
+            lifecycle = pointLifecycle;
+        }
+
+        public void SetPlayerReset(PlayerCatController player, Vector2 resetPosition)
+        {
+            playerController = player;
+            playerResetPosition = resetPosition;
         }
 
         public bool TrySubmitHit(
@@ -91,6 +112,11 @@ namespace CatTennis.Rebuild.Flow
 
         private void HandlePhysicsStep(BallStepResult result)
         {
+            if (lifecycle != null && !lifecycle.AllowsRallyEvents)
+            {
+                return;
+            }
+
             IReadOnlyList<CourtObservation> observations = courtZoneDetector.Evaluate(result);
             for (int index = 0; index < observations.Count; index++)
             {
@@ -107,9 +133,19 @@ namespace CatTennis.Rebuild.Flow
 
         private void HandlePointResult(PointResult result)
         {
-            if (!matchFlowManager.TryApplyPoint(result))
+            if (lifecycle != null && !lifecycle.TryBeginReset())
             {
                 return;
+            }
+
+            if (!matchFlowManager.TryApplyPoint(result))
+            {
+                throw new InvalidOperationException("Lifecycle accepted a duplicate point result.");
+            }
+
+            if (matchFlowManager.MatchEnded)
+            {
+                lifecycle?.MarkMatchEnded();
             }
 
             resetFlowController.HandlePointEnd(!matchFlowManager.MatchEnded);
@@ -117,7 +153,15 @@ namespace CatTennis.Rebuild.Flow
 
         private void HandleNextPointReady(NextPointRequest request)
         {
+            if (lifecycle != null &&
+                lifecycle.State == PointLoopState.ResetPending &&
+                !lifecycle.TryBeginNextPoint())
+            {
+                return;
+            }
+
             courtZoneDetector.ResetLatches();
+            playerController?.ResetPlayer(playerResetPosition);
             ballController.ResetBall(request.ResetPosition);
             rallyFlowManager.BeginPoint();
             if (!rallyFlowManager.RegisterHit(request.Server, out PointResult pointResult) ||
@@ -127,6 +171,10 @@ namespace CatTennis.Rebuild.Flow
             }
 
             ballController.Launch(request.LaunchVelocity);
+            if (lifecycle != null && !lifecycle.TryActivateRally())
+            {
+                throw new InvalidOperationException("Point lifecycle could not activate the rally.");
+            }
         }
 
         private void RequireReferences()

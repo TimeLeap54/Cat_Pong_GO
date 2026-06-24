@@ -35,11 +35,12 @@ when J and K are pressed together.
 - Stale requests, rejected rule hits, and point-ending hits never launch the ball.
 - Player body collision excludes the TennisBall layer through its own collider filter.
 
-## Lab scene
+## Lab scene (retired)
 
-`Assets/Scenes/Phase4_PlayerHitLab.unity` starts deterministic opponent serves toward
-the controllable square player. Controls are A/D, Space, J, and K. The scene remains
-excluded from Build Settings and is not production gameplay content.
+The temporary `Phase4_PlayerHitLab` scene provided deterministic opponent serves
+toward a controllable square player. It was removed after Phase 4.5 integrated the
+same A/D, Space, J, and K controls into `Rebuild_Match`; its automated tests remain
+active.
 
 ## Deferred work
 

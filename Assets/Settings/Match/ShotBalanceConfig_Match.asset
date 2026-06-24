@@ -9,11 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f54419e00f62064d860a9755c4bf330, type: 3}
-  m_Name: PointLoopConfig_Phase3
+  m_Script: {fileID: 11500000, guid: 5ccf3612991db3943b33d09692410f81, type: 3}
+  m_Name: ShotBalanceConfig_Match
   m_EditorClassIdentifier: 
-  targetScore: 5
-  resetDelay: 0.5
-  server: 1
-  resetPosition: {x: -4, y: 1}
-  fixedTestServeVelocity: {x: 4, y: 6}
+  safeHorizontalSpeed: 6
+  safeVerticalSpeed: 6
+  smashHorizontalSpeed: 9
+  smashVerticalSpeed: -2
+  maxHorizontalSpeed: 20
+  maxRiseSpeed: 20
+  maxFallSpeed: 20

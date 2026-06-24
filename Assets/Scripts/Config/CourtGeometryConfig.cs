@@ -9,6 +9,7 @@ namespace CatTennis.Rebuild.Config
     {
         [SerializeField] private float worldMinX = -10f;
         [SerializeField] private float worldMaxX = 10f;
+        [SerializeField] private float groundY;
         [SerializeField] private float playerCourtMinX = -8f;
         [SerializeField] private float playerCourtMaxX = -0.5f;
         [SerializeField] private float opponentCourtMinX = 0.5f;
@@ -19,6 +20,7 @@ namespace CatTennis.Rebuild.Config
 
         public float WorldMinX => worldMinX;
         public float WorldMaxX => worldMaxX;
+        public float GroundY => groundY;
         public float PlayerCourtMinX => playerCourtMinX;
         public float PlayerCourtMaxX => playerCourtMaxX;
         public float OpponentCourtMinX => opponentCourtMinX;
@@ -36,7 +38,8 @@ namespace CatTennis.Rebuild.Config
             float newOpponentCourtMaxX,
             float newLineTolerance,
             bool newUseKillPlane = true,
-            float newKillPlaneY = -5f)
+            float newKillPlaneY = -5f,
+            float newGroundY = 0f)
         {
             worldMinX = newWorldMinX;
             worldMaxX = newWorldMaxX;
@@ -47,6 +50,7 @@ namespace CatTennis.Rebuild.Config
             lineTolerance = newLineTolerance;
             useKillPlane = newUseKillPlane;
             killPlaneY = newKillPlaneY;
+            groundY = newGroundY;
         }
 
         public void ValidateOrThrow()
@@ -96,7 +100,7 @@ namespace CatTennis.Rebuild.Config
             return IsFinite(worldMinX) && IsFinite(worldMaxX) &&
                    IsFinite(playerCourtMinX) && IsFinite(playerCourtMaxX) &&
                    IsFinite(opponentCourtMinX) && IsFinite(opponentCourtMaxX) &&
-                   IsFinite(lineTolerance) && IsFinite(killPlaneY);
+                   IsFinite(lineTolerance) && IsFinite(killPlaneY) && IsFinite(groundY);
         }
 
         private static bool IsFinite(float value)

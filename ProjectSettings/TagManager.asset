@@ -15,10 +15,10 @@ TagManager:
   - UI
   - 
   - 
-  - 
-  - 
-  - 
-  - 
+  - PlayerBody
+  - TennisBall
+  - Ground
+  - CourtSensor
   - 
   - 
   - 

@@ -69,6 +69,23 @@ namespace CatTennis.Rebuild.Cat
             FacingDirection = direction;
         }
 
+        public void ResetPlayer(Vector2 position)
+        {
+            EnsureInitialized();
+            body.position = position;
+            body.velocity = Vector2.zero;
+            body.angularVelocity = 0f;
+            FacingDirection = 1;
+            stateMachine.Reset();
+            CurrentAction = new PlayerActionFrame(
+                LocomotionState.Grounded,
+                SwingState.Ready,
+                SwingKind.None,
+                stateMachine.SwingId,
+                false,
+                0f);
+        }
+
         public void Initialize(
             PlayerInputReader reader,
             PlayerHitDetector detector,
@@ -101,9 +118,19 @@ namespace CatTennis.Rebuild.Cat
 
         private void EnsureReferences()
         {
-            if (inputReader == null || hitDetector == null || config == null)
+            if (inputReader == null)
             {
-                throw new InvalidOperationException("Player controller references are incomplete.");
+                throw new InvalidOperationException("PlayerInputReader is required.");
+            }
+
+            if (hitDetector == null)
+            {
+                throw new InvalidOperationException("PlayerHitDetector is required.");
+            }
+
+            if (config == null)
+            {
+                throw new InvalidOperationException("PlayerControlConfig is required.");
             }
         }
     }

@@ -11,6 +11,7 @@ namespace CatTennis.Rebuild.Debugging
         [SerializeField] private RallyFlowManager rallyFlow;
         [SerializeField] private PointLoopEventBridge bridge;
         [SerializeField] private PlayerCatController playerController;
+        [SerializeField] private MatchBootstrapper bootstrapper;
 
         public void Configure(
             MatchFlowManager match,
@@ -27,6 +28,11 @@ namespace CatTennis.Rebuild.Debugging
             playerController = player;
         }
 
+        public void ConfigureNavigation(MatchBootstrapper matchBootstrapper)
+        {
+            bootstrapper = matchBootstrapper;
+        }
+
         private void OnGUI()
         {
             if (matchFlow == null || rallyFlow == null || bridge == null)
@@ -34,8 +40,8 @@ namespace CatTennis.Rebuild.Debugging
                 return;
             }
 
-            GUI.Box(new Rect(16f, 16f, 360f, playerController == null ? 118f : 158f),
-                playerController == null ? "Phase 3 Point Loop Lab" : "Phase 4 Player Hit Lab");
+            GUI.Box(new Rect(16f, 16f, 380f, playerController == null ? 146f : 186f),
+                playerController == null ? "Point Loop QA" : "CAT TENNIS - MATCH QA");
             GUI.Label(new Rect(32f, 46f, 280f, 22f),
                 $"Score  Player {matchFlow.PlayerScore} : {matchFlow.OpponentScore} Opponent");
             GUI.Label(new Rect(32f, 68f, 280f, 22f),
@@ -51,9 +57,22 @@ namespace CatTennis.Rebuild.Debugging
                     "A/D Move  Space Jump  J Return  K Smash");
             }
 
-            if (GUI.Button(new Rect(232f, 98f, 88f, 26f), "Retry"))
+            if (GUI.Button(new Rect(200f, playerController == null ? 124f : 164f, 80f, 26f), "Retry"))
             {
-                bridge.RetryMatch();
+                if (bootstrapper != null)
+                {
+                    bootstrapper.RetryMatch();
+                }
+                else
+                {
+                    bridge.RetryMatch();
+                }
+            }
+
+            if (bootstrapper != null &&
+                GUI.Button(new Rect(288f, playerController == null ? 124f : 164f, 92f, 26f), "Main Menu"))
+            {
+                bootstrapper.ReturnToMainMenu();
             }
         }
     }

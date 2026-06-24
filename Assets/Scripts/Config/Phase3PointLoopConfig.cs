@@ -13,12 +13,14 @@ namespace CatTennis.Rebuild.Config
         [SerializeField] private HitterType server = HitterType.Player;
         [SerializeField] private Vector2 resetPosition = new Vector2(-4f, 1f);
         [SerializeField] private Vector2 fixedTestServeVelocity = new Vector2(8f, 6f);
+        [SerializeField] private Vector2 playerResetPosition = new Vector2(-4f, 0.75f);
 
         public int TargetScore => targetScore;
         public float ResetDelay => resetDelay;
         public HitterType Server => server;
         public Vector2 ResetPosition => resetPosition;
         public Vector2 FixedTestServeVelocity => fixedTestServeVelocity;
+        public Vector2 PlayerResetPosition => playerResetPosition;
 
         public void Configure(
             int newTargetScore,
@@ -32,6 +34,11 @@ namespace CatTennis.Rebuild.Config
             server = newServer;
             resetPosition = newResetPosition;
             fixedTestServeVelocity = newFixedTestServeVelocity;
+        }
+
+        public void SetPlayerResetPosition(Vector2 position)
+        {
+            playerResetPosition = position;
         }
 
         public void ValidateOrThrow()
@@ -50,6 +57,12 @@ namespace CatTennis.Rebuild.Config
                 !IsFinite(fixedTestServeVelocity.x) || !IsFinite(fixedTestServeVelocity.y))
             {
                 throw new InvalidOperationException("Point loop vectors must be finite.");
+            }
+
+
+            if (!IsFinite(playerResetPosition.x) || !IsFinite(playerResetPosition.y))
+            {
+                throw new InvalidOperationException("Player reset position must be finite.");
             }
         }
 

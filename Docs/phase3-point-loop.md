@@ -44,12 +44,11 @@ processed step index before each new point.
 - Every reset request advances a generation token; stale callbacks cannot start a point.
 - A zero reset delay emits synchronously. Positive delays use a coroutine.
 
-## Lab scene
+## Lab scene (retired)
 
-Open `Assets/Scenes/Phase3_PointLoopLab.unity` to inspect the loop with square
-player/opponent markers and a deterministic fixed serve. The scene is intentionally
-excluded from Build Settings. Its on-screen debug panel reports score, point id,
-rally state, match winner, and exposes Retry.
+The temporary `Phase3_PointLoopLab` scene provided square markers and a fixed serve.
+It was removed after Phase 4.5 moved this loop into `Rebuild_Match`; its automated
+tests remain active.
 
 ## Deferred work
 
