@@ -64,6 +64,31 @@ namespace CatTennis.Rebuild.Flow
             resetFlowController.RequestRetry();
         }
 
+        public bool TrySubmitHit(
+            HitterType hitter,
+            long expectedBallStepIndex,
+            Vector2 launchVelocity)
+        {
+            if (ballController.CurrentSnapshot.StepIndex != expectedBallStepIndex)
+            {
+                return false;
+            }
+
+            if (!rallyFlowManager.RegisterHit(hitter, out PointResult pointResult))
+            {
+                return false;
+            }
+
+            if (pointResult.HasWinner)
+            {
+                HandlePointResult(pointResult);
+                return false;
+            }
+
+            ballController.Launch(launchVelocity);
+            return true;
+        }
+
         private void HandlePhysicsStep(BallStepResult result)
         {
             IReadOnlyList<CourtObservation> observations = courtZoneDetector.Evaluate(result);
