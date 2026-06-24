@@ -21,6 +21,7 @@ namespace CatTennis.Rebuild.Ball
         public BallSnapshot CurrentSnapshot => tracker.Current;
         public BallStepResult LastStepResult { get; private set; }
         public BallPhysicsConfig Config => config;
+        public event Action<BallStepResult> OnPhysicsStep;
 
         private void Awake()
         {
@@ -65,6 +66,7 @@ namespace CatTennis.Rebuild.Ball
                 result.NextSnapshot.PositionY);
             body.velocity = Vector2.zero;
             body.angularVelocity = 0f;
+            OnPhysicsStep?.Invoke(result);
             return result;
         }
 

@@ -145,6 +145,27 @@ namespace CatTennis.Rebuild.Tests
             AssertPoint(transition, ToSide(hitter), Opposite(ToSide(hitter)), FailureReason.UnreturnedAfterValidBounce);
         }
 
+        [TestCase(HitterType.Player)]
+        [TestCase(HitterType.Opponent)]
+        public void BallSettledAfterValidBounceMakesReceiverLose(HitterType hitter)
+        {
+            RallyContext context = FirstValidBounce(Start(hitter), 2);
+            RuleTransition transition = judge.Evaluate(context, Settled(1, 3));
+
+            AssertPoint(
+                transition,
+                ToSide(hitter),
+                Opposite(ToSide(hitter)),
+                FailureReason.UnreturnedAfterValidBounce);
+        }
+
+        [Test]
+        public void BallSettledBeforeValidBounceIsRejected()
+        {
+            RallyContext context = Start(HitterType.Player);
+            AssertRejected(context, judge.Evaluate(context, Settled(1, 2)));
+        }
+
         [TestCase(HitterType.Player, false)]
         [TestCase(HitterType.Opponent, false)]
         [TestCase(HitterType.Player, true)]
@@ -335,6 +356,11 @@ namespace CatTennis.Rebuild.Tests
                 eventId,
                 RuleEventType.BoundaryExit,
                 boundaryType: BoundaryType.KillPlane);
+        }
+
+        private static RuleEvent Settled(long pointId, long eventId)
+        {
+            return new RuleEvent(pointId, eventId, RuleEventType.BallSettled);
         }
 
         private static RuleEvent EventForType(long pointId, long eventId, RuleEventType type)

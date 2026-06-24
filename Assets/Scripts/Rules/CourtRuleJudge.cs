@@ -78,6 +78,11 @@ namespace CatTennis.Rebuild.Rules
                     return IsValidBoundary(ruleEvent.BoundaryType)
                         ? EndWithReceiverLoss(context, ruleEvent, FailureReason.UnreturnedAfterValidBounce)
                         : RuleTransition.Rejected(context);
+                case RuleEventType.BallSettled:
+                    return EndWithReceiverLoss(
+                        context,
+                        ruleEvent,
+                        FailureReason.UnreturnedAfterValidBounce);
                 default:
                     return RuleTransition.Rejected(context);
             }
@@ -255,6 +260,7 @@ namespace CatTennis.Rebuild.Rules
                            ruleEvent.BoundaryType == BoundaryType.None;
                 case RuleEventType.NetContact:
                 case RuleEventType.NetStopped:
+                case RuleEventType.BallSettled:
                     return ruleEvent.Hitter == HitterType.None &&
                            ruleEvent.CourtArea == CourtArea.None &&
                            ruleEvent.BoundaryType == BoundaryType.None;

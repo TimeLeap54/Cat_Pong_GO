@@ -7,6 +7,7 @@ namespace CatTennis.Rebuild.State
         GroundTouch = 1,
         NetContact = 2,
         NetStopped = 3,
-        BoundaryExit = 4
+        BoundaryExit = 4,
+        BallSettled = 5
     }
 }
