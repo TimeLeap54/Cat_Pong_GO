@@ -1,4 +1,5 @@
 using CatTennis.BallPhysics.Core;
+using CatTennis.Rebuild.Shot;
 using UnityEngine;
 
 namespace CatTennis.Rebuild.Ball
@@ -11,6 +12,8 @@ namespace CatTennis.Rebuild.Ball
 
         public BallSnapshot CurrentSnapshot => Applier.CurrentSnapshot;
         public BallStepResult LastStepResult => Applier.LastStepResult;
+        public BallPlayMode PlayMode { get; private set; } = BallPlayMode.Inactive;
+        public ShotIntent LastShotIntent { get; private set; } = ShotIntent.Undefined;
 
         private BallPhysicsApplier Applier
         {
@@ -28,6 +31,8 @@ namespace CatTennis.Rebuild.Ball
         public void ResetBall(Vector2 position)
         {
             Applier.ResetBall(position);
+            PlayMode = BallPlayMode.Inactive;
+            LastShotIntent = ShotIntent.Undefined;
         }
 
         public void Launch(Vector2 velocity)
@@ -38,6 +43,18 @@ namespace CatTennis.Rebuild.Ball
         public void StopBall()
         {
             Applier.StopBall();
+            PlayMode = BallPlayMode.Inactive;
+            LastShotIntent = ShotIntent.Undefined;
+        }
+
+        public void SetPlayMode(BallPlayMode mode)
+        {
+            PlayMode = mode;
+        }
+
+        public void SetLastShotIntent(ShotIntent intent)
+        {
+            LastShotIntent = intent;
         }
     }
 }

@@ -8,7 +8,9 @@ namespace CatTennis.Rebuild.Cat
             SwingKind swingKind,
             long swingId,
             bool jumpRequested,
-            float moveX)
+            float moveX,
+            UnityEngine.Vector2 aimDirection = default,
+            long inputTick = 0)
         {
             LocomotionState = locomotionState;
             SwingState = swingState;
@@ -16,6 +18,8 @@ namespace CatTennis.Rebuild.Cat
             SwingId = swingId;
             JumpRequested = jumpRequested;
             MoveX = moveX;
+            AimDirection = aimDirection;
+            InputTick = inputTick;
         }
 
         public LocomotionState LocomotionState { get; }
@@ -24,6 +28,8 @@ namespace CatTennis.Rebuild.Cat
         public long SwingId { get; }
         public bool JumpRequested { get; }
         public float MoveX { get; }
+        public UnityEngine.Vector2 AimDirection { get; }
+        public long InputTick { get; }
         public bool IsHitActive => SwingState == SwingState.NormalActive ||
                                    SwingState == SwingState.SmashActive;
     }

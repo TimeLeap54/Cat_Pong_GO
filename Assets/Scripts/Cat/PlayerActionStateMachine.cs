@@ -8,6 +8,7 @@ namespace CatTennis.Rebuild.Cat
         private readonly PlayerActionSettings settings;
         private int swingTicksRemaining;
         private bool waitingToLeaveGround;
+        private int waitingToLeaveGroundTicks;
 
         public PlayerActionStateMachine(PlayerActionSettings actionSettings)
         {
@@ -29,6 +30,7 @@ namespace CatTennis.Rebuild.Cat
             SwingKind = SwingKind.None;
             swingTicksRemaining = 0;
             waitingToLeaveGround = false;
+            waitingToLeaveGroundTicks = 0;
         }
 
         public PlayerActionFrame Step(PlayerInputFrame input, bool groundDetected)
@@ -41,6 +43,7 @@ namespace CatTennis.Rebuild.Cat
             {
                 LocomotionState = LocomotionState.Airborne;
                 waitingToLeaveGround = true;
+                waitingToLeaveGroundTicks = 10;
                 jumpRequested = true;
             }
 
@@ -62,15 +65,27 @@ namespace CatTennis.Rebuild.Cat
                 SwingKind,
                 SwingId,
                 jumpRequested,
-                input.MoveX);
+                input.MoveX,
+                input.AimDirection,
+                input.InputTick);
         }
 
         private void AdvanceLocomotion(bool groundDetected)
         {
+            if (waitingToLeaveGroundTicks > 0)
+            {
+                waitingToLeaveGroundTicks--;
+                if (waitingToLeaveGroundTicks == 0)
+                {
+                    waitingToLeaveGround = false;
+                }
+            }
+
             if (!groundDetected)
             {
                 LocomotionState = LocomotionState.Airborne;
                 waitingToLeaveGround = false;
+                waitingToLeaveGroundTicks = 0;
             }
             else if (!waitingToLeaveGround)
             {

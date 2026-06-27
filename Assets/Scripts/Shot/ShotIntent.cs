@@ -5,6 +5,10 @@ namespace CatTennis.Rebuild.Shot
     {
         Undefined = 0,
         SafeReturn = 1,
-        Smash = 2
+        Deep = 2,
+        Drop = 3,
+        Lob = 4,
+        Smash = 5,
+        Serve = 6
     }
 }

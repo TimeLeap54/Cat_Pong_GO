@@ -18,6 +18,9 @@ namespace CatTennis.Rebuild.Flow
         [SerializeField] private Phase3PointLoopConfig pointLoopConfig;
         [SerializeField] private PlayerControlConfig playerControlConfig;
         [SerializeField] private ShotBalanceConfig shotBalanceConfig;
+        [SerializeField] private AIBalanceConfig aiBalanceConfig;
+        [SerializeField] private MovementBalanceConfig movementBalanceConfig;
+        [SerializeField] private RallyAiBalanceConfig rallyAiConfig;
 
         [Header("Systems")]
         [SerializeField] private MatchSceneValidator validator;
@@ -35,10 +38,17 @@ namespace CatTennis.Rebuild.Flow
         [SerializeField] private PlayerHitDetector hitDetector;
         [SerializeField] private PlayerCatController player;
         [SerializeField] private PlayerShotEventBridge shotBridge;
+        [SerializeField] private ServeFlowController serveFlow;
+        [SerializeField] private OpponentServeFlowController opponentServeFlow;
+        [SerializeField] private ShotExecutionController shotExecutor;
+        [SerializeField] private OpponentAIController opponent;
+        [SerializeField] private OpponentHitDetector opponentHitDetector;
+        [SerializeField] private Vector2 opponentResetPosition;
         [SerializeField] private Collider2D playerCollider;
         [SerializeField] private Collider2D groundCollider;
 
         private bool initialized;
+        public static bool SelectedRallyMode = true; // 메인 메뉴에서 주입할 정적 변수
 
         public bool IsInitialized => initialized;
 
@@ -48,6 +58,7 @@ namespace CatTennis.Rebuild.Flow
             Phase3PointLoopConfig pointLoop,
             PlayerControlConfig playerControl,
             ShotBalanceConfig shotBalance,
+            AIBalanceConfig aiBalance,
             MatchSceneValidator sceneValidator,
             PointLifecycleController pointLifecycle,
             CourtZoneDetector courtDetector,
@@ -61,6 +72,12 @@ namespace CatTennis.Rebuild.Flow
             PlayerHitDetector playerHitDetector,
             PlayerCatController playerController,
             PlayerShotEventBridge playerShotBridge,
+            ServeFlowController serveFlowController,
+            OpponentServeFlowController opponentServeFlowController,
+            ShotExecutionController executionController,
+            OpponentAIController opponentController,
+            OpponentHitDetector aiHitDetector,
+            Vector2 aiResetPosition,
             Collider2D bodyCollider,
             Collider2D courtGroundCollider)
         {
@@ -69,6 +86,7 @@ namespace CatTennis.Rebuild.Flow
             pointLoopConfig = pointLoop;
             playerControlConfig = playerControl;
             shotBalanceConfig = shotBalance;
+            aiBalanceConfig = aiBalance;
             validator = sceneValidator;
             lifecycle = pointLifecycle;
             detector = courtDetector;
@@ -82,6 +100,10 @@ namespace CatTennis.Rebuild.Flow
             hitDetector = playerHitDetector;
             player = playerController;
             shotBridge = playerShotBridge;
+            serveFlow = serveFlowController;
+            opponentServeFlow = opponentServeFlowController;
+            shotExecutor=executionController; opponent=opponentController;
+            opponentHitDetector=aiHitDetector; opponentResetPosition=aiResetPosition;
             playerCollider = bodyCollider;
             groundCollider = courtGroundCollider;
         }
@@ -98,11 +120,25 @@ namespace CatTennis.Rebuild.Flow
                 return false;
             }
 
+            if (opponentServeFlow == null)
+            {
+                opponentServeFlow = GetComponent<OpponentServeFlowController>();
+                if (opponentServeFlow == null)
+                {
+                    opponentServeFlow = gameObject.AddComponent<OpponentServeFlowController>();
+                }
+            }
+
             RequireReferences();
             courtGeometryConfig.ValidateOrThrow();
+
+            // 런타임 모드 선택 상태를 Config 인스턴스에 주입
+            pointLoopConfig.ConfigureRallyMode(SelectedRallyMode);
+
             pointLoopConfig.ValidateOrThrow();
             playerControlConfig.ValidateOrThrow();
             shotBalanceConfig.ValidateOrThrow();
+            aiBalanceConfig.ValidateOrThrow();
             ballPhysicsConfig.CreateSettings();
 
             lifecycle.Initialize();
@@ -110,13 +146,47 @@ namespace CatTennis.Rebuild.Flow
             detector.Initialize(courtGeometryConfig);
             match.Initialize(pointLoopConfig);
             reset.Initialize(ball, pointLoopConfig);
-            hitDetector.Initialize(ball, playerControlConfig);
-            player.Initialize(input, hitDetector, playerControlConfig);
+            hitDetector.Initialize(ball, playerControlConfig, shotBalanceConfig);
+            hitDetector.SetPointIdProvider(() => rally.GlobalPointId);
+            player.Initialize(input, hitDetector, playerControlConfig,
+                courtGeometryConfig.WorldMinX, courtGeometryConfig.PlayerCourtMaxX);
             player.ResetPlayer(pointLoopConfig.PlayerResetPosition);
             pointBridge.Configure(ballPhysics, ball, detector, rally, match, reset);
+            pointBridge.SetConfig(pointLoopConfig);
             pointBridge.SetLifecycle(lifecycle);
             pointBridge.SetPlayerReset(player, pointLoopConfig.PlayerResetPosition);
-            shotBridge.Configure(hitDetector, pointBridge, shotBalanceConfig);
+            player.SetMovementBalance(movementBalanceConfig);
+            pointBridge.SetMovementBalance(movementBalanceConfig);
+            shotExecutor.Configure(pointBridge,shotBalanceConfig,ballPhysicsConfig,courtGeometryConfig);
+            pointBridge.SetShotExecutor(shotExecutor);
+            shotBridge.Configure(hitDetector, pointBridge, shotBalanceConfig,
+                ballPhysicsConfig, courtGeometryConfig,shotExecutor);
+            opponentHitDetector.Configure(ball,playerControlConfig,shotExecutor);
+            opponent.Configure(ball,ballPhysicsConfig,courtGeometryConfig,playerControlConfig,
+                aiBalanceConfig,rally,opponentHitDetector, player, rallyAiConfig);
+            pointBridge.SetOpponentReset(opponent,opponentResetPosition);
+            serveFlow.Configure(ball, player, hitDetector, shotBalanceConfig);
+            if (opponentServeFlow != null)
+            {
+                opponentServeFlow.Configure(ball, opponent, shotBalanceConfig);
+            }
+            PlayerManualHitboxController manualHitboxes = player.GetComponent<PlayerManualHitboxController>();
+            if (manualHitboxes != null)
+            {
+                manualHitboxes.Bind(hitDetector);
+                hitDetector.SetManualHitboxController(manualHitboxes);
+            }
+            OpponentManualHitboxController aiManualHitboxes = opponent.GetComponent<OpponentManualHitboxController>();
+            if (aiManualHitboxes != null)
+            {
+                aiManualHitboxes.Bind(opponentHitDetector);
+                opponentHitDetector.SetManualHitboxController(aiManualHitboxes);
+            }
+            pointBridge.SetServeFlow(serveFlow);
+            if (opponentServeFlow != null)
+            {
+                pointBridge.SetOpponentServeFlow(opponentServeFlow);
+            }
             validator.Configure(
                 ballPhysicsConfig,
                 courtGeometryConfig,
@@ -155,10 +225,12 @@ namespace CatTennis.Rebuild.Flow
         {
             if (ballPhysicsConfig == null || courtGeometryConfig == null ||
                 pointLoopConfig == null || playerControlConfig == null ||
-                shotBalanceConfig == null || validator == null || lifecycle == null ||
+                shotBalanceConfig == null || aiBalanceConfig == null || validator == null || lifecycle == null ||
                 detector == null || rally == null || match == null || reset == null ||
                 pointBridge == null || ballPhysics == null || ball == null || input == null ||
                 hitDetector == null || player == null || shotBridge == null ||
+                serveFlow == null || opponentServeFlow == null ||
+                shotExecutor==null||opponent==null||opponentHitDetector==null||
                 playerCollider == null || groundCollider == null)
             {
                 throw new InvalidOperationException("MatchBootstrapper references are incomplete.");

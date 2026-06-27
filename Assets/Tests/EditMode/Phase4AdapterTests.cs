@@ -6,6 +6,7 @@ using CatTennis.Rebuild.Rules;
 using CatTennis.Rebuild.Shot;
 using CatTennis.Rebuild.State;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace CatTennis.Rebuild.Tests
@@ -76,6 +77,32 @@ namespace CatTennis.Rebuild.Tests
             Assert.That(detector.Evaluate(active, Vector2.zero, 1), Is.False);
             Assert.That(requests, Is.EqualTo(1));
             Assert.That(captured.Intent, Is.EqualTo(ShotIntent.SafeReturn));
+        }
+
+        [Test]
+        public void SwingIntentIsCapturedAtStartupWhileBallStateComesFromContact()
+        {
+            BallController ball = CreateBall();
+            ball.ResetBall(new Vector2(1f, 1f));
+            ball.Launch(Vector2.zero);
+            PlayerHitDetector detector = root.AddComponent<PlayerHitDetector>();
+            detector.Initialize(ball, playerConfig);
+            ShotRequest captured = default;
+            detector.OnShotRequested += request => captured = request;
+            detector.Evaluate(new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalStartup, SwingKind.Normal, 1, false, 0f,
+                Vector2.right, 10), Vector2.zero, 1);
+
+            ball.ResetBall(new Vector2(1.2f, 1.1f));
+            ball.Launch(new Vector2(-1f, 0f));
+            Assert.That(detector.Evaluate(new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalActive, SwingKind.Normal, 1, false, 0f,
+                Vector2.left, 11), Vector2.zero, 1), Is.True);
+
+            Assert.That(captured.Intent, Is.EqualTo(ShotIntent.Deep));
+            Assert.That(captured.InputTick, Is.EqualTo(10));
+            Assert.That(captured.BallSnapshot.PositionX, Is.EqualTo(1.2f));
+            Assert.That(captured.BallSnapshot.VelocityX, Is.EqualTo(-1f));
         }
 
         [Test]
@@ -182,6 +209,128 @@ namespace CatTennis.Rebuild.Tests
                 new Vector2(9f, 9f)), Is.False);
         }
 
+        [Test]
+        public void MovementBalanceScalesBallLaunchVelocityAtFinalBridge()
+        {
+            Harness harness = CreatePointHarness(5, HitterType.Opponent);
+            MovementBalanceConfig balance = ScriptableObject.CreateInstance<MovementBalanceConfig>();
+            SerializedObject serialized = new SerializedObject(balance);
+            serialized.FindProperty("ballHorizontalSpeedMultiplier").floatValue = 0.5f;
+            serialized.FindProperty("ballVerticalSpeedMultiplier").floatValue = 0.25f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            harness.Bridge.SetMovementBalance(balance);
+            harness.Bridge.StartInitialPoint();
+
+            bool launched = harness.Bridge.TrySubmitHit(
+                HitterType.Player,
+                harness.Ball.CurrentSnapshot.StepIndex,
+                new Vector2(8f, 4f));
+
+            Assert.That(launched, Is.True);
+            Assert.That(harness.Ball.CurrentSnapshot.VelocityX, Is.EqualTo(4f));
+            Assert.That(harness.Ball.CurrentSnapshot.VelocityY, Is.EqualTo(1f));
+            Object.DestroyImmediate(balance);
+        }
+
+        [Test]
+        public void ServeTossPhysicsNeverReachesRuleOrScoreLayer()
+        {
+            Harness harness = CreatePointHarness(5, HitterType.Opponent);
+            harness.Bridge.StartInitialPoint();
+            harness.Ball.ResetBall(new Vector2(-4f, 0.2f));
+            harness.Ball.SetPlayMode(BallPlayMode.ServeToss);
+            harness.Ball.Launch(new Vector2(0f, -2f));
+            for (int step = 0; step < 100; step++) harness.Applier.StepOnce(0.02f);
+
+            Assert.That(harness.Match.PlayerScore, Is.Zero);
+            Assert.That(harness.Match.OpponentScore, Is.Zero);
+        }
+
+        [Test]
+        public void ManualHitboxControllerEnablesOnlyActiveSwingKind()
+        {
+            PlayerManualHitboxController controller = root.AddComponent<PlayerManualHitboxController>();
+            ManualHitboxTrigger normal = CreateManualHitbox("NormalHitbox");
+            ManualHitboxTrigger smash = CreateManualHitbox("SmashHitbox");
+            controller.Configure(normal, smash, null);
+
+            controller.ApplyAction(new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalStartup, SwingKind.Normal, 1, false, 0f), 1);
+            Assert.That(normal.Box.enabled || smash.Box.enabled, Is.False);
+
+            controller.ApplyAction(new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalActive, SwingKind.Normal, 1, false, 0f), 1);
+            Assert.That(normal.Box.enabled, Is.True);
+            Assert.That(smash.Box.enabled, Is.False);
+
+            controller.ApplyAction(new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.SmashActive, SwingKind.Smash, 2, false, 0f), 1);
+            Assert.That(smash.Box.enabled, Is.True);
+            Assert.That(normal.Box.enabled, Is.False);
+        }
+
+        [Test]
+        public void ManualNormalOverlapUsesExistingShotRequestPathOnce()
+        {
+            BallController ball = CreateBall();
+            ball.ResetBall(new Vector2(1f, 1f));
+            ball.SetPlayMode(BallPlayMode.Rally);
+            ball.Launch(Vector2.zero);
+
+            PlayerHitDetector detector = root.AddComponent<PlayerHitDetector>();
+            detector.Initialize(ball, playerConfig);
+            PlayerManualHitboxController controller = root.AddComponent<PlayerManualHitboxController>();
+            ManualHitboxTrigger normal = CreateManualHitbox("NormalHitbox");
+            ManualHitboxTrigger smash = CreateManualHitbox("SmashHitbox");
+            controller.Configure(normal, smash, detector);
+            detector.SetManualHitboxController(controller);
+
+            int requests = 0;
+            detector.OnShotRequested += _ => requests++;
+            PlayerActionFrame active = new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalActive, SwingKind.Normal, 7, false, 0f);
+
+            detector.Evaluate(active, Vector2.zero, 1);
+            controller.ApplyAction(active, 1);
+            Collider2D ballCollider = ball.gameObject.AddComponent<CircleCollider2D>();
+
+            controller.HandleOverlap(ManualHitboxKind.Normal, ballCollider);
+            controller.HandleOverlap(ManualHitboxKind.Normal, ballCollider);
+
+            Assert.That(requests, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ManualWrongKindOverlapIsRejected()
+        {
+            BallController ball = CreateBall();
+            ball.ResetBall(new Vector2(1f, 1f));
+            ball.SetPlayMode(BallPlayMode.Rally);
+            ball.Launch(Vector2.zero);
+
+            PlayerHitDetector detector = root.AddComponent<PlayerHitDetector>();
+            detector.Initialize(ball, playerConfig);
+            PlayerManualHitboxController controller = root.AddComponent<PlayerManualHitboxController>();
+            ManualHitboxTrigger normal = CreateManualHitbox("NormalHitbox");
+            ManualHitboxTrigger smash = CreateManualHitbox("SmashHitbox");
+            controller.Configure(normal, smash, detector);
+            detector.SetManualHitboxController(controller);
+
+            int requests = 0;
+            detector.OnShotRequested += _ => requests++;
+            PlayerActionFrame active = new PlayerActionFrame(LocomotionState.Grounded,
+                SwingState.NormalActive, SwingKind.Normal, 7, false, 0f);
+
+            detector.Evaluate(active, Vector2.zero, 1);
+            controller.ApplyAction(active, 1);
+            Collider2D ballCollider = ball.gameObject.AddComponent<CircleCollider2D>();
+
+            controller.HandleOverlap(ManualHitboxKind.Smash, ballCollider);
+
+            Assert.That(requests, Is.Zero);
+            Assert.That(controller.LastRejectReason, Is.EqualTo("WrongHitboxKind"));
+        }
+
         private BallController CreateBall()
         {
             GameObject ballObject = new GameObject("Ball");
@@ -192,6 +341,16 @@ namespace CatTennis.Rebuild.Tests
             BallController ball = ballObject.AddComponent<BallController>();
             applier.Configure(physicsConfig, true, 0f);
             return ball;
+        }
+
+        private ManualHitboxTrigger CreateManualHitbox(string name)
+        {
+            GameObject hitbox = new GameObject(name);
+            hitbox.transform.SetParent(root.transform);
+            BoxCollider2D box = hitbox.AddComponent<BoxCollider2D>();
+            box.isTrigger = true;
+            box.enabled = false;
+            return hitbox.AddComponent<ManualHitboxTrigger>();
         }
 
         private Harness CreatePointHarness(int targetScore, HitterType server)
@@ -212,17 +371,21 @@ namespace CatTennis.Rebuild.Tests
             PointLoopEventBridge bridge = root.AddComponent<PointLoopEventBridge>();
             bridge.Configure(applier, ball, detector, rally, match, resetFlow);
             root.SetActive(true);
-            return new Harness(ball, match, bridge);
+            return new Harness(applier, ball, match, bridge);
         }
 
         private readonly struct Harness
         {
-            public Harness(BallController ball, MatchFlowManager match, PointLoopEventBridge bridge)
+            public Harness(BallPhysicsApplier applier, BallController ball,
+                MatchFlowManager match, PointLoopEventBridge bridge)
             {
+                Applier = applier;
                 Ball = ball;
                 Match = match;
                 Bridge = bridge;
             }
+
+            public BallPhysicsApplier Applier { get; }
 
             public BallController Ball { get; }
             public MatchFlowManager Match { get; }

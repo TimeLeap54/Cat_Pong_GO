@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetScore: 5
   resetDelay: 0.35
-  server: 2
-  resetPosition: {x: 4, y: 1}
-  fixedTestServeVelocity: {x: -4, y: 6}
+  server: 1
+  resetPosition: {x: -4, y: 1}
+  fixedTestServeVelocity: {x: 4, y: 6}
   playerResetPosition: {x: -4, y: 0.75}

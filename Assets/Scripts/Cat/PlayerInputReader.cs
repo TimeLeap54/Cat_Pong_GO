@@ -6,6 +6,8 @@ namespace CatTennis.Rebuild.Cat
     public sealed class PlayerInputReader : MonoBehaviour
     {
         private float moveX;
+        private float aimY;
+        private long inputTick;
         private bool jumpPressed;
         private bool swingPressed;
         private bool smashPressed;
@@ -13,6 +15,7 @@ namespace CatTennis.Rebuild.Cat
         private void Update()
         {
             moveX = Input.GetAxisRaw("Horizontal");
+            aimY = Input.GetAxisRaw("Vertical");
             jumpPressed |= Input.GetKeyDown(KeyCode.Space);
             swingPressed |= Input.GetKeyDown(KeyCode.J);
             smashPressed |= Input.GetKeyDown(KeyCode.K);
@@ -24,7 +27,9 @@ namespace CatTennis.Rebuild.Cat
                 moveX,
                 jumpPressed,
                 swingPressed,
-                smashPressed);
+                smashPressed,
+                aimY,
+                ++inputTick);
             jumpPressed = false;
             swingPressed = false;
             smashPressed = false;
@@ -34,6 +39,7 @@ namespace CatTennis.Rebuild.Cat
         public void InjectDebugFrame(PlayerInputFrame frame)
         {
             moveX = frame.MoveX;
+            aimY = frame.AimDirection.y;
             jumpPressed |= frame.JumpPressed;
             swingPressed |= frame.SwingPressed;
             smashPressed |= frame.SmashPressed;

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 275aee5b12cb5b84f83ba89baf07bc3e, type: 3}
+  m_Name: AI_Dojo
+  m_EditorClassIdentifier: 
+  moveSpeed: 4.5
+  acceleration: 12
+  deceleration: 16
+  reactionDelay: 0.16
+  predictionStep: 0.02
+  predictionHorizon: 2.5
+  courtMinX: 0.65
+  courtMaxX: 7.8
+  homeX: 5
+  swingLeadTime: 0.14
+  jumpLeadTime: 0.35
+  jumpHeightThreshold: 2.1
+  jumpSpeed: 7
+  safeWeight: 50
+  deepWeight: 22
+  dropWeight: 12
+  lobWeight: 16

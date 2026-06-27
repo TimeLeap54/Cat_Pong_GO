@@ -15,9 +15,11 @@ namespace CatTennis.Rebuild.Flow
         private RallyContext context;
         private bool hasPoint;
         private bool pointResultEmitted;
+        private int rallyHitCount;
 
         public RallyContext CurrentContext => context;
         public long GlobalPointId => globalPointId;
+        public int RallyHitCount => rallyHitCount;
         public bool HasActivePoint => hasPoint &&
                                       context.State != RallyState.Ended &&
                                       !pointResultEmitted;
@@ -31,6 +33,7 @@ namespace CatTennis.Rebuild.Flow
 
             globalPointId++;
             nextEventId = 0;
+            rallyHitCount = 0;
             context = RallyContext.Create(globalPointId);
             hasPoint = true;
             pointResultEmitted = false;
@@ -45,9 +48,14 @@ namespace CatTennis.Rebuild.Flow
                 return false;
             }
 
-            return TryEvaluate(
+            bool success = TryEvaluate(
                 new RuleEvent(CurrentPointId(), NextEventId(), RuleEventType.Hit, hitter),
                 out pointResult);
+            if (success)
+            {
+                rallyHitCount++;
+            }
+            return success;
         }
 
         public bool ProcessObservation(CourtObservation observation, out PointResult pointResult)

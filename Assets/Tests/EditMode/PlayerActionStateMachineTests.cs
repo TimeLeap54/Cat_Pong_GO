@@ -81,6 +81,19 @@ namespace CatTennis.Rebuild.Tests
             Assert.That(machine.Step(Input(jump: true), true).JumpRequested, Is.True);
         }
 
+        [Test]
+        public void JumpWatchdogRecoversGroundedStateAfterTimeout()
+        {
+            Assert.That(machine.Step(Input(jump: true), true).JumpRequested, Is.True);
+            for (int i = 0; i < 9; i++)
+            {
+                PlayerActionFrame frame = machine.Step(default, true);
+                Assert.That(frame.LocomotionState, Is.EqualTo(LocomotionState.Airborne));
+            }
+            PlayerActionFrame landedFrame = machine.Step(default, true);
+            Assert.That(landedFrame.LocomotionState, Is.EqualTo(LocomotionState.Grounded));
+        }
+
         private static PlayerInputFrame Input(
             bool jump = false,
             bool swing = false,

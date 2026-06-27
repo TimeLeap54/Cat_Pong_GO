@@ -12,10 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ccf3612991db3943b33d09692410f81, type: 3}
   m_Name: ShotBalanceConfig_Match
   m_EditorClassIdentifier: 
-  safeHorizontalSpeed: 6
-  safeVerticalSpeed: 6
-  smashHorizontalSpeed: 9
-  smashVerticalSpeed: -2
-  maxHorizontalSpeed: 20
-  maxRiseSpeed: 20
-  maxFallSpeed: 20
+  aimDeadZone: 0.25
+  verticalPriorityThreshold: 0.4
+  netHeight: 1
+  clearance: 0.12
+  safe: {x: 0.55, y: 2.3, z: 0.9}
+  deep: {x: 0.88, y: 2.1, z: 0.85}
+  drop: {x: 0.12, y: 1.35, z: 0.75}
+  lob: {x: 0.72, y: 4.2, z: 1.2}
+  smash: {x: 0.72, y: 0.2, z: 0.62}
+  serve: {x: 0.72, y: 2.5, z: 0.95}
+  tossOffset: {x: 0.35, y: 0.75}
+  tossSpeed: 5.2
+  serveWindowOpen: 0.18
+  serveWindowClose: 0.85
+  serveRetryDelay: 0.3
+  perfectTime: 0.48
+  perfectHalfWidth: 0.07
+  goodHalfWidth: 0.16
+  serveAssistRadius: 2.5
+  serveSnapDistance: 3.2

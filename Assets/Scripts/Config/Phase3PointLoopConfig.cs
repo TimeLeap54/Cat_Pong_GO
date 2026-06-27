@@ -11,6 +11,7 @@ namespace CatTennis.Rebuild.Config
         [SerializeField] private int targetScore = 5;
         [SerializeField] private float resetDelay = 0.5f;
         [SerializeField] private HitterType server = HitterType.Player;
+        [SerializeField] private bool isRallyMode = true;
         [SerializeField] private Vector2 resetPosition = new Vector2(-4f, 1f);
         [SerializeField] private Vector2 fixedTestServeVelocity = new Vector2(8f, 6f);
         [SerializeField] private Vector2 playerResetPosition = new Vector2(-4f, 0.75f);
@@ -18,6 +19,7 @@ namespace CatTennis.Rebuild.Config
         public int TargetScore => targetScore;
         public float ResetDelay => resetDelay;
         public HitterType Server => server;
+        public bool IsRallyMode => isRallyMode;
         public Vector2 ResetPosition => resetPosition;
         public Vector2 FixedTestServeVelocity => fixedTestServeVelocity;
         public Vector2 PlayerResetPosition => playerResetPosition;
@@ -39,6 +41,11 @@ namespace CatTennis.Rebuild.Config
         public void SetPlayerResetPosition(Vector2 position)
         {
             playerResetPosition = position;
+        }
+
+        public void ConfigureRallyMode(bool isRally)
+        {
+            isRallyMode = isRally;
         }
 
         public void ValidateOrThrow()

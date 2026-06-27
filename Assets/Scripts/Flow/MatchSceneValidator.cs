@@ -55,6 +55,10 @@ namespace CatTennis.Rebuild.Flow
             RequireSingle<ResetFlowController>(errors);
             RequireSingle<PointLoopEventBridge>(errors);
             RequireSingle<PlayerShotEventBridge>(errors);
+            RequireSingle<ServeFlowController>(errors);
+            RequireSingle<ShotExecutionController>(errors);
+            RequireSingle<OpponentAIController>(errors);
+            RequireSingle<OpponentHitDetector>(errors);
             RequireSingle<BallController>(errors);
             RequireSingle<PlayerCatController>(errors);
             RequireSingle<Camera>(errors);
@@ -73,6 +77,8 @@ namespace CatTennis.Rebuild.Flow
             ValidatePhysics(errors);
             ValidateLayers(errors);
             ValidateGround(errors);
+            ValidatePresentation(errors);
+            ValidateManualHitboxes();
             return errors;
         }
 
@@ -145,6 +151,120 @@ namespace CatTennis.Rebuild.Flow
             if (Mathf.Abs(groundCollider.bounds.max.y - courtGeometryConfig.GroundY) > 0.001f)
             {
                 errors.Add("Ground collider top does not match CourtGeometryConfig.GroundY.");
+            }
+        }
+
+        private void ValidatePresentation(List<string> errors)
+        {
+            Transform playerVisual = player.transform.Find("VisualRoot");
+            ValidateVisualRoot(playerVisual, "Player", errors);
+
+            GameObject opponent = GameObject.Find("Opponent");
+            ValidateVisualRoot(opponent == null ? null : opponent.transform.Find("VisualRoot"),
+                "Opponent", errors);
+
+            ValidateSpriteChild(ball.transform, "VisualRoot", "Ball", errors);
+
+            GameObject court = GameObject.Find("Court");
+            ValidateSpriteChild(court == null ? null : court.transform,
+                "NetVisual", "Net", errors);
+            ValidateSpriteChild(court == null ? null : court.transform,
+                "BackgroundVisual", "Background", errors);
+        }
+
+        private void ValidateManualHitboxes()
+        {
+            PlayerManualHitboxController manual = player.GetComponent<PlayerManualHitboxController>();
+            if (manual == null)
+            {
+                Debug.LogWarning("Manual hitbox layer is not present on Player. Phase 6.5 manual tuning is unavailable.", this);
+                return;
+            }
+
+            if (manual.ManualHitboxesRoot == null)
+            {
+                Debug.LogWarning("ManualHitboxes root is missing. Facing mirroring will not affect manual hitboxes.", manual);
+            }
+
+            ValidateManualHitbox(manual.NormalHitbox, "NormalHitbox", manual);
+            ValidateManualHitbox(manual.SmashHitbox, "SmashHitbox", manual);
+
+            if (Physics2D.GetIgnoreLayerCollision(
+                    playerControlConfig.BallLayer,
+                    playerControlConfig.PlayerBodyLayer))
+            {
+                Debug.LogWarning("TennisBall and PlayerBody layers are globally ignored; manual trigger hitboxes may not receive overlap events.", manual);
+            }
+        }
+
+        private static void ValidateManualHitbox(
+            ManualHitboxTrigger hitbox,
+            string label,
+            UnityEngine.Object context)
+        {
+            if (hitbox == null)
+            {
+                Debug.LogWarning($"{label} reference is missing.", context);
+                return;
+            }
+
+            if (hitbox.Box == null)
+            {
+                Debug.LogWarning($"{label} has no BoxCollider2D reference.", hitbox);
+                return;
+            }
+
+            if (!hitbox.Box.isTrigger)
+            {
+                Debug.LogWarning($"{label} BoxCollider2D must be trigger.", hitbox);
+            }
+
+            if (hitbox.Box.enabled)
+            {
+                Debug.LogWarning($"{label} BoxCollider2D should be disabled by default.", hitbox);
+            }
+        }
+
+        private static void ValidateVisualRoot(Transform visual, string label, List<string> errors)
+        {
+            if (visual == null)
+            {
+                errors.Add($"{label} VisualRoot is missing.");
+                return;
+            }
+
+            SpriteRenderer renderer = visual.GetComponent<SpriteRenderer>();
+            Animator animator = visual.GetComponent<Animator>();
+            CatAnimationPresenter presenter = visual.GetComponent<CatAnimationPresenter>();
+            if (renderer == null || renderer.sprite == null || animator == null ||
+                animator.runtimeAnimatorController == null || presenter == null)
+            {
+                errors.Add($"{label} visual presentation is incomplete.");
+            }
+
+            if (visual.GetComponent<Rigidbody2D>() != null || visual.GetComponent<Collider2D>() != null)
+            {
+                errors.Add($"{label} VisualRoot must not own physics components.");
+            }
+        }
+
+        private static void ValidateSpriteChild(
+            Transform parent,
+            string childName,
+            string label,
+            List<string> errors)
+        {
+            Transform child = parent == null ? null : parent.Find(childName);
+            SpriteRenderer renderer = child == null ? null : child.GetComponent<SpriteRenderer>();
+            if (renderer == null || renderer.sprite == null)
+            {
+                errors.Add($"{label} visual is missing or has no sprite.");
+            }
+
+            if (child != null &&
+                (child.GetComponent<Rigidbody2D>() != null || child.GetComponent<Collider2D>() != null))
+            {
+                errors.Add($"{label} visual must not own physics components.");
             }
         }
 

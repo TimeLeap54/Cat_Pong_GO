@@ -5,6 +5,8 @@ namespace CatTennis.BallPhysics.Core
     /// <summary>Advances immutable ball state using deterministic fixed-step arithmetic.</summary>
     public sealed class BallPhysicsModel
     {
+        private static readonly System.Random random = new System.Random();
+
         public BallStepResult Step(
             BallSnapshot snapshot,
             BallPhysicsSettings settings,
@@ -86,6 +88,45 @@ namespace CatTennis.BallPhysics.Core
                     hadGroundContact = true;
                     contactY = input.GroundY;
                     positionY = input.GroundY + settings.BallRadius;
+                }
+            }
+
+            // [네트 충돌 물리 반사 계산]
+            // settings.NetX는 통상 0f, 네트 높이는 GroundY + 1.0f 부근
+            float netX = 0f;
+            float netHeightLimit = input.GroundY + 1.0f + settings.BallRadius;
+            
+            // 공의 이전 X 부호와 다음 X 부호가 바뀌는 순간 (네트 평면 통과 검출)
+            if (System.Math.Sign(snapshot.PositionX - netX) != System.Math.Sign(positionX - netX))
+            {
+                // 교차 시점의 Y 높이를 선형 보간하여 정밀 추적 (터널링 방지)
+                float dx = positionX - snapshot.PositionX;
+                if (System.Math.Abs(dx) > 0.0001f)
+                {
+                    float t = (netX - snapshot.PositionX) / dx;
+                    float yAtNet = snapshot.PositionY + (positionY - snapshot.PositionY) * t;
+                    
+                    // 네트 상단 높이보다 낮게 날아와 부딪힌 경우 (네트 옆면도 포함)
+                    if (yAtNet <= netHeightLimit)
+                    {
+                        float topThreshold = netHeightLimit - 0.08f;
+
+                        // 35% 확률로 네트 럭키 샷 (Net Cord) 발동하여 상대편 진영으로 기어감
+                        if (yAtNet >= topThreshold && random.NextDouble() <= 0.35)
+                        {
+                            velocityX = velocityX * 0.35f; // 가던 방향 유지, 속도 65% 감속
+                            velocityY = 1.6f;              // 수직 홉 튕김 높이
+                            positionX = snapshot.PositionX > netX ? netX - 0.15f : netX + 0.15f; // 반대편 진영으로 통과
+                        }
+                        else
+                        {
+                            // 일반 네트 충돌 피격 (반대 방향 튕김)
+                            velocityX = -velocityX * 0.5f;
+                            velocityY = System.Math.Max(velocityY, 2.2f);
+                            positionX = snapshot.PositionX > netX ? netX + 0.15f : netX - 0.15f; // 자기 진영으로 밀림
+                        }
+                        didBounce = true;
+                    }
                 }
             }
 

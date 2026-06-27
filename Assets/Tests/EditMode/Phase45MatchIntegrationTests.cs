@@ -7,6 +7,7 @@ using CatTennis.Rebuild.Rules;
 using CatTennis.Rebuild.State;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -62,6 +63,12 @@ namespace CatTennis.Rebuild.Tests
             Assert.That(bootstrapper.InitializeMatch(), Is.False);
             Assert.That(validator.ValidateScene(), Is.Empty);
             Assert.That(lifecycle.State, Is.EqualTo(PointLoopState.RallyActive));
+            Assert.That(Object.FindObjectsOfType<CatAnimationPresenter>(true), Has.Length.EqualTo(2));
+            Assert.That(GameObject.Find("Player").transform.Find("VisualRoot"), Is.Not.Null);
+            Assert.That(GameObject.Find("Opponent").transform.Find("VisualRoot"), Is.Not.Null);
+            Assert.That(GameObject.Find("Ball").transform.Find("VisualRoot"), Is.Not.Null);
+            Assert.That(GameObject.Find("Court").transform.Find("BackgroundVisual"), Is.Not.Null);
+            Assert.That(GameObject.Find("Court").transform.Find("NetVisual"), Is.Not.Null);
         }
 
         [Test]
@@ -72,6 +79,48 @@ namespace CatTennis.Rebuild.Tests
             Assert.That(scenes[0].path, Is.EqualTo("Assets/Scenes/Rebuild_MainMenu.unity"));
             Assert.That(scenes[1].path, Is.EqualTo("Assets/Scenes/Rebuild_Match.unity"));
             Assert.That(scenes[0].enabled && scenes[1].enabled, Is.True);
+        }
+
+        [TestCase("Assets/Art/Animations/Player/PlayerCat.controller",
+            "Assets/Art/Animations/Player")]
+        [TestCase("Assets/Art/Animations/Opponent/OpponentCat.controller",
+            "Assets/Art/Animations/Opponent")]
+        public void CharacterAnimatorAssetsHaveRequiredParametersAndResolvedFrames(
+            string controllerPath,
+            string clipFolder)
+        {
+            AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(
+                controllerPath);
+            Assert.That(controller, Is.Not.Null);
+
+            string[] expectedParameters = { "MoveX", "Grounded", "Jump", "JSwing", "KSmash" };
+            foreach (string expected in expectedParameters)
+            {
+                Assert.That(System.Array.Exists(controller.parameters,
+                    parameter => parameter.name == expected), Is.True,
+                    $"Animator parameter is missing: {expected}");
+            }
+
+            string[] clipGuids = AssetDatabase.FindAssets("t:AnimationClip", new[] { clipFolder });
+            Assert.That(clipGuids, Has.Length.EqualTo(6));
+            foreach (string guid in clipGuids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+                EditorCurveBinding[] bindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+                Assert.That(bindings, Is.Not.Empty, $"Sprite curve is missing: {path}");
+                foreach (EditorCurveBinding binding in bindings)
+                {
+                    ObjectReferenceKeyframe[] frames =
+                        AnimationUtility.GetObjectReferenceCurve(clip, binding);
+                    Assert.That(frames, Is.Not.Empty, $"Animation has no frames: {path}");
+                    foreach (ObjectReferenceKeyframe frame in frames)
+                    {
+                        Assert.That(frame.value, Is.Not.Null,
+                            $"Animation has a missing sprite: {path}");
+                    }
+                }
+            }
         }
 
         [Test]

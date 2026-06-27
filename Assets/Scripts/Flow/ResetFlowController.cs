@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using CatTennis.Rebuild.Ball;
 using CatTennis.Rebuild.Config;
+using CatTennis.Rebuild.State;
 using UnityEngine;
 
 namespace CatTennis.Rebuild.Flow
@@ -14,6 +15,7 @@ namespace CatTennis.Rebuild.Flow
 
         private Coroutine pendingReset;
         private long resetGeneration;
+        private HitterType nextServer = HitterType.Player;
 
         public event Action<NextPointRequest> OnNextPointReady;
 
@@ -22,13 +24,18 @@ namespace CatTennis.Rebuild.Flow
             ballController = ball;
             config = pointLoopConfig;
             config?.ValidateOrThrow();
+            nextServer = config != null ? config.Server : HitterType.Player;
+        }
+
+        public void SetNextServer(HitterType server)
+        {
+            nextServer = server;
         }
 
         public void HandlePointEnd(bool shouldRestart)
         {
             RequireReferences();
             long generation = BeginNewGeneration();
-            ballController.StopBall();
             if (shouldRestart)
             {
                 ScheduleNextPoint(generation);
@@ -39,7 +46,6 @@ namespace CatTennis.Rebuild.Flow
         {
             RequireReferences();
             long generation = BeginNewGeneration();
-            ballController.StopBall();
             ScheduleNextPoint(generation);
         }
 
@@ -47,7 +53,6 @@ namespace CatTennis.Rebuild.Flow
         {
             RequireReferences();
             long generation = BeginNewGeneration();
-            ballController.StopBall();
             EmitNextPointIfCurrent(generation);
         }
 
@@ -87,10 +92,21 @@ namespace CatTennis.Rebuild.Flow
             }
 
             pendingReset = null;
+            ballController.StopBall();
+
+            Vector2 position = config.ResetPosition;
+            Vector2 velocity = config.FixedTestServeVelocity;
+
+            if (nextServer == HitterType.Opponent)
+            {
+                position.x = -position.x;
+                velocity.x = -velocity.x;
+            }
+
             OnNextPointReady?.Invoke(new NextPointRequest(
-                config.Server,
-                config.ResetPosition,
-                config.FixedTestServeVelocity));
+                nextServer,
+                position,
+                velocity));
         }
 
         private long BeginNewGeneration()
