@@ -115,6 +115,7 @@ namespace CatTennis.Rebuild.Cat
                 bool isCounteringSmash = (ball != null && 
                                           ball.PlayMode == BallPlayMode.Rally && 
                                           ball.LastShotIntent == ShotIntent.Smash);
+                bool isCounteringKillSmash = isCounteringSmash && ball.LastShotWasKillSmash;
                 float ratio = CalculateHitHeightRatio(ball.CurrentSnapshot, currentAction.SwingKind);
                 HitContact contact = new HitContact(
                     currentPointId,
@@ -128,7 +129,8 @@ namespace CatTennis.Rebuild.Cat
                     currentAction.InputTick,
                     false,
                     isCounteringSmash,
-                    ratio
+                    ratio,
+                    isCounteringKillSmash
                 );
 
                 if (!executor.TryExecute(contact))
@@ -155,58 +157,122 @@ namespace CatTennis.Rebuild.Cat
 
             if (UsesManualHitboxes)
             {
-                return false;
+                // 랠리 모드 시 수동 지정한 BoxCollider2D의 실제 월드 영역을 기반으로 수학적 Contains 백업을 구동합니다.
+                // 이로써 수동 콜라이더 영역과 수학적 백업 영역의 크기가 100% 완벽하게 일치하여 허공 타격이 전혀 발생하지 않습니다.
+                if (ball == null || ball.PlayMode != BallPlayMode.Rally)
+                {
+                    return false;
+                }
+
+                OpponentManualHitboxTrigger activeTrigger = (action.SwingKind == SwingKind.Smash)
+                    ? manualHitboxes.SmashHitbox
+                    : manualHitboxes.NormalHitbox;
+
+                if (activeTrigger == null || activeTrigger.Box == null)
+                {
+                    return false;
+                }
+
+                Bounds bounds = activeTrigger.Box.bounds;
+                // 헛방 방지 보정으로 수동 지정 콜라이더의 월드 바운즈에 20cm(0.2f) 버퍼만 더하여 프레임 관통 방지
+                bounds.Expand(0.2f);
+
+                if (!bounds.Contains(new Vector3(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY, bounds.center.z)))
+                {
+                    return false;
+                }
             }
 
             if(plan==null||plan.Consumed||plan.PointId!=pointId||
-               System.Math.Abs(ball.CurrentSnapshot.StepIndex-plan.ExpectedBallStepIndex)>8) return false;
+               System.Math.Abs(ball.CurrentSnapshot.StepIndex-plan.ExpectedBallStepIndex)>30) return false;
             if(action.SwingId<=0||action.SwingId==consumedSwingId) return false;
 
-            // AI 타격 존을 수평/수직 1.25배 확장하여 마그네틱 흡입 보정 적용
+            // AI 타격 존을 랠리 모드에서는 1.18배 확장하여 수동 히트박스와 조화롭게 맞춤
+            float scale = (ball != null && ball.PlayMode == BallPlayMode.Rally) ? 1.18f : 1.25f;
             HitZoneDefinition normalZone = hitConfig.CreateNormalHitZone();
             HitZoneDefinition smashZone = hitConfig.CreateSmashHitZone();
             HitZoneDefinition expandedNormal = new HitZoneDefinition(
                 normalZone.CenterX,
                 normalZone.CenterY,
-                normalZone.HalfWidth * 1.25f,
-                normalZone.HalfHeight * 1.25f,
+                normalZone.HalfWidth * scale,
+                normalZone.HalfHeight * scale,
                 normalZone.RequireForward
             );
             HitZoneDefinition expandedSmash = new HitZoneDefinition(
                 smashZone.CenterX,
                 smashZone.CenterY,
-                smashZone.HalfWidth * 1.25f,
-                smashZone.HalfHeight * 1.25f,
+                smashZone.HalfWidth * scale,
+                smashZone.HalfHeight * scale,
                 smashZone.RequireForward
             );
 
-            float relativeY = ball.CurrentSnapshot.PositionY - position.y;
-            HitZoneDefinition activeZone = action.SwingKind == SwingKind.Smash ? expandedSmash : expandedNormal;
-            float yMin = activeZone.CenterY - activeZone.HalfHeight;
-            float yMax = activeZone.CenterY + activeZone.HalfHeight;
-            float ratio = yMax > yMin ? Mathf.Clamp01((relativeY - yMin) / (yMax - yMin)) : 0.5f;
+            float ratio = CalculateHitHeightRatio(ball.CurrentSnapshot, action.SwingKind);
             bool isCounteringSmash = (ball != null && 
                                       ball.PlayMode == BallPlayMode.Rally && 
                                       ball.LastShotIntent == ShotIntent.Smash);
 
-            if(!validator.TryCreate(pointId,action,HitterType.Opponent,plan.Intent,position,facing,
-                ball.CurrentSnapshot,ball.PlayMode,expandedNormal,
-                expandedSmash,out HitContact contact, ratio, isCounteringSmash)) return false;
+            HitContact contact;
+            if (UsesManualHitboxes)
+            {
+                contact = new HitContact(
+                    pointId,
+                    action.SwingId,
+                    ball.CurrentSnapshot.StepIndex,
+                    HitterType.Opponent,
+                    plan.Intent,
+                    position,
+                    ball.CurrentSnapshot,
+                    facing,
+                    action.InputTick,
+                    ball.PlayMode == BallPlayMode.ServeToss,
+                    isCounteringSmash,
+                    ratio
+                );
+            }
+            else
+            {
+                if (!validator.TryCreate(pointId, action, HitterType.Opponent, plan.Intent, position, facing,
+                    ball.CurrentSnapshot, ball.PlayMode, expandedNormal,
+                    expandedSmash, out contact, ratio, isCounteringSmash))
+                {
+                    return false;
+                }
+            }
+
             if(!executor.TryExecute(contact)) return false;
-            consumedSwingId=action.SwingId; return true;
+            consumedSwingId=action.SwingId;
+            plan.Consumed = true; // 플랜 완료 처리 (스킬 연쇄 및 다음 상태 갱신 복구)
+            return true;
         }
 
         private float CalculateHitHeightRatio(BallSnapshot ballSnapshot, SwingKind swingKind)
         {
             if (hitConfig == null) return 0.5f;
+
+            if (UsesManualHitboxes)
+            {
+                OpponentManualHitboxTrigger activeTrigger = (swingKind == SwingKind.Smash || IsServeToss)
+                    ? manualHitboxes.SmashHitbox
+                    : manualHitboxes.NormalHitbox;
+
+                if (activeTrigger != null && activeTrigger.Box != null)
+                {
+                    Bounds bounds = activeTrigger.Box.bounds;
+                    float relativeY = ballSnapshot.PositionY - bounds.min.y;
+                    float height = bounds.size.y;
+                    if (height <= 0.0001f) return 0.5f;
+                    return Mathf.Clamp01(relativeY / height);
+                }
+            }
+
             HitZoneDefinition zone = (swingKind == SwingKind.Smash || IsServeToss)
                 ? hitConfig.CreateSmashHitZone()
                 : hitConfig.CreateNormalHitZone();
-            float relativeY = ballSnapshot.PositionY - currentOpponentPosition.y;
+            float relativeYVal = ballSnapshot.PositionY - currentOpponentPosition.y;
             float yMin = zone.CenterY - zone.HalfHeight;
             float yMax = zone.CenterY + zone.HalfHeight;
             if (yMax <= yMin) return 0.5f;
-            return Mathf.Clamp01((relativeY - yMin) / (yMax - yMin));
+            return Mathf.Clamp01((relativeYVal - yMin) / (yMax - yMin));
         }
         public void ResetDetector() => consumedSwingId=0;
 

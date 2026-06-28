@@ -8,7 +8,8 @@ namespace CatTennis.Rebuild.Shot
     {
         public ShotRequest(SwingIntentSnapshot intentSnapshot, long ballStepIndex,
             HitterType hitter, BallSnapshot ballSnapshot, float originX, float originY,
-            bool isServeToss = false, bool isCounteringSmash = false, float hitHeightRatio = 0.5f)
+            bool isServeToss = false, bool isCounteringSmash = false, float hitHeightRatio = 0.5f,
+            bool isKillSmash = false, bool isCounteringKillSmash = false)
         {
             IntentSnapshot = intentSnapshot;
             BallStepIndex = ballStepIndex;
@@ -19,6 +20,8 @@ namespace CatTennis.Rebuild.Shot
             IsServeToss = isServeToss;
             IsCounteringSmash = isCounteringSmash;
             HitHeightRatio = hitHeightRatio;
+            IsKillSmash = isKillSmash;
+            IsCounteringKillSmash = isCounteringKillSmash;
             Validate();
         }
 
@@ -27,7 +30,7 @@ namespace CatTennis.Rebuild.Shot
             float contactX, float contactY, int facingDirection)
             : this(new SwingIntentSnapshot(1, swingId, 0,
                     new UnityEngine.Vector2(facingDirection, 0f), facingDirection, intent),
-                ballStepIndex, hitter, ballSnapshot, playerX, playerY, false, false, 0.5f) { }
+                ballStepIndex, hitter, ballSnapshot, playerX, playerY, false, false, 0.5f, false, false) { }
 
         public SwingIntentSnapshot IntentSnapshot { get; }
         public long PointId => IntentSnapshot.PointId;
@@ -43,6 +46,8 @@ namespace CatTennis.Rebuild.Shot
         public bool IsServeToss { get; }
         public bool IsCounteringSmash { get; }
         public float HitHeightRatio { get; }
+        public bool IsKillSmash { get; }
+        public bool IsCounteringKillSmash { get; }
 
         public void Validate()
         {

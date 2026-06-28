@@ -36,7 +36,7 @@ namespace CatTennis.Rebuild.Shot
                 : float.PositiveInfinity;
             bool speedValid = Math.Abs(vx) <= settings.MaxHorizontalSpeed &&
                               vy <= settings.MaxRiseSpeed && vy >= -settings.MaxFallSpeed;
-            bool netValid = netY >= settings.NetHeight + settings.Clearance;
+            bool netValid = netY >= settings.NetHeight + 0.15f + settings.Clearance;
             bool valid = speedValid && netValid && IsFinite(vx) && IsFinite(vy);
             return new ShotTrajectoryResult(vx, vy, targetX, targetY, time, apex, netY,
                 valid, valid ? FailureReason.None : netValid ? FailureReason.InvalidEvent : FailureReason.FailedToClear);

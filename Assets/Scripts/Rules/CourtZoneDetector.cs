@@ -57,7 +57,7 @@ namespace CatTennis.Rebuild.Rules
                 observations.Add(new CourtObservation(
                     CourtObservationType.GroundTouch,
                     snapshot.StepIndex,
-                    ClassifyGround(snapshot.PositionX)));
+                    ClassifyGround(snapshot.PositionX, snapshot.VelocityX)));
             }
 
             if (emitSettled)
@@ -104,15 +104,22 @@ namespace CatTennis.Rebuild.Rules
             }
         }
 
-        private CourtArea ClassifyGround(float positionX)
+        private CourtArea ClassifyGround(float positionX, float velocityX)
         {
+            // 네트 초근접 구역(절대값 0.05m 이내) 착지 경계 케이스 오류 방지
+            // 공의 진행 방향(수평 속도의 부호)을 기준으로 날아가던 리시버 코트로 귀속 판정하여 랠리를 유지합니다.
+            if (System.Math.Abs(positionX) < 0.05f)
+            {
+                return velocityX >= 0f ? CourtArea.OpponentCourt : CourtArea.PlayerCourt;
+            }
+
             if (positionX >= geometry.PlayerCourtMinX - geometry.LineTolerance &&
-                positionX <= geometry.PlayerCourtMaxX + geometry.LineTolerance)
+                positionX < 0.0f)
             {
                 return CourtArea.PlayerCourt;
             }
 
-            if (positionX >= geometry.OpponentCourtMinX - geometry.LineTolerance &&
+            if (positionX >= 0.0f &&
                 positionX <= geometry.OpponentCourtMaxX + geometry.LineTolerance)
             {
                 return CourtArea.OpponentCourt;

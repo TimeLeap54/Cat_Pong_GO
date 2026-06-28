@@ -158,7 +158,7 @@ namespace CatTennis.Rebuild.Cat
 
         private void EnsureInitialized()
         {
-            if (!initialized)
+            if (!initialized || stateMachine == null)
             {
                 Initialize(inputReader, hitDetector, config);
             }

@@ -18,10 +18,13 @@ namespace CatTennis.Rebuild.Cat
                 current=step.NextSnapshot; if(step.DidBounce||step.DidSettle)bounces++;
                 if(bounces>=2) break;
                 if(current.PositionX>=courtMinX && current.PositionX<=courtMaxX &&
-                   current.PositionY>=groundY+settings.BallRadius && current.PositionY<=groundY+3.4f)
+                   current.PositionY>=groundY+settings.BallRadius && current.PositionY<=groundY+5.5f)
+                {
+                    bool reqJump = current.PositionY > jumpThreshold;
                     result.Add(new BallArrivalCandidate(
                         new UnityEngine.Vector2(current.PositionX,current.PositionY),i*fixedStep,
-                        current.StepIndex,bounces,current.PositionY>jumpThreshold));
+                        current.StepIndex,bounces,reqJump));
+                }
             }
             return result;
         }

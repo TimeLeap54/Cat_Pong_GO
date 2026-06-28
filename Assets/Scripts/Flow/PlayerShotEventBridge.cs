@@ -1,6 +1,5 @@
 using System;
 using CatTennis.Rebuild.Cat;
-using CatTennis.Rebuild.Config;
 using CatTennis.Rebuild.Shot;
 using CatTennis.Rebuild.State;
 using UnityEngine;
@@ -11,10 +10,6 @@ namespace CatTennis.Rebuild.Flow
     public sealed class PlayerShotEventBridge : MonoBehaviour
     {
         [SerializeField] private PlayerHitDetector hitDetector;
-        [SerializeField] private PointLoopEventBridge pointLoopBridge;
-        [SerializeField] private ShotBalanceConfig shotConfig;
-        [SerializeField] private BallPhysicsConfig ballPhysicsConfig;
-        [SerializeField] private CourtGeometryConfig courtGeometryConfig;
         [SerializeField] private ShotExecutionController shotExecutionController;
 
         private bool subscribed;
@@ -32,18 +27,10 @@ namespace CatTennis.Rebuild.Flow
 
         public void Configure(
             PlayerHitDetector detector,
-            PointLoopEventBridge pointLoop,
-            ShotBalanceConfig balanceConfig,
-            BallPhysicsConfig physicsConfig = null,
-            CourtGeometryConfig geometryConfig = null,
-            ShotExecutionController executor = null)
+            ShotExecutionController executor)
         {
             hitDetector = detector;
-            pointLoopBridge = pointLoop;
-            shotConfig = balanceConfig;
-            if (physicsConfig != null) ballPhysicsConfig = physicsConfig;
-            if (geometryConfig != null) courtGeometryConfig = geometryConfig;
-            if (executor != null) shotExecutionController = executor;
+            shotExecutionController = executor;
             RequireReferences();
             Subscribe();
         }
@@ -53,7 +40,9 @@ namespace CatTennis.Rebuild.Flow
             HitContact contact = new HitContact(request.PointId, request.SwingId,
                 request.BallStepIndex, request.Hitter, request.Intent,
                 new Vector2(request.OriginX, request.OriginY), request.BallSnapshot,
-                request.FacingDirection, request.InputTick);
+                request.FacingDirection, request.InputTick,
+                request.IsServeToss, request.IsCounteringSmash, request.HitHeightRatio,
+                request.IsCounteringKillSmash);
             shotExecutionController.TryExecute(contact);
         }
 
@@ -85,15 +74,10 @@ namespace CatTennis.Rebuild.Flow
 
         private void RequireReferences()
         {
-            if (hitDetector == null || pointLoopBridge == null || shotConfig == null ||
-                ballPhysicsConfig == null || courtGeometryConfig == null)
+            if (hitDetector == null || shotExecutionController == null)
             {
                 throw new InvalidOperationException("PlayerShotEventBridge references are incomplete.");
             }
-
-            shotConfig.ValidateOrThrow();
-            if (shotExecutionController == null)
-                throw new InvalidOperationException("ShotExecutionController is required.");
         }
     }
 }

@@ -35,6 +35,9 @@ namespace CatTennis.Rebuild.Flow
 
         private bool subscribed;
         public long CurrentPointId => rallyFlowManager.GlobalPointId;
+        public int RallyHitCount => rallyFlowManager != null ? rallyFlowManager.RallyHitCount : 0;
+        public bool IsRallyMode => rallyFlowManager != null && rallyFlowManager.IsRallyMode;
+        public bool IsVolley => rallyFlowManager != null && rallyFlowManager.CurrentContext.State == RallyState.InFlight;
         public bool IsServeWaitingForToss =>
             (serveFlowController != null && serveFlowController.enabled && serveFlowController.State == ServeFlowState.WaitingForToss) ||
             (opponentServeFlowController != null && opponentServeFlowController.enabled && opponentServeFlowController.IsWaitingForToss);
@@ -96,6 +99,10 @@ namespace CatTennis.Rebuild.Flow
         public void SetConfig(Phase3PointLoopConfig config)
         {
             pointLoopConfig = config;
+            if (rallyFlowManager != null && config != null)
+            {
+                rallyFlowManager.IsRallyMode = config.IsRallyMode;
+            }
             activeServer = pointLoopConfig != null
                 ? (pointLoopConfig.IsRallyMode ? HitterType.Player : pointLoopConfig.Server)
                 : HitterType.Player;
@@ -194,7 +201,14 @@ namespace CatTennis.Rebuild.Flow
             }
 
             if (activateRally) ballController.SetPlayMode(BallPlayMode.Rally);
-            ballController.Launch(ApplyBallBalance(launchVelocity));
+            
+            // 상대 AI가 친 공은 기획 밸런싱 배율(0.9배 감속 등)을 적용하지 않고, 
+            // ShotModel이 네트를 무조건 넘어가도록 연산한 정밀 속도 그대로 발사합니다.
+            Vector2 finalVelocity = (hitter == HitterType.Opponent && IsRallyMode)
+                ? launchVelocity
+                : ApplyBallBalance(launchVelocity);
+
+            ballController.Launch(finalVelocity);
             return true;
         }
 

@@ -112,7 +112,12 @@ namespace CatTennis.Rebuild.Cat
 
             if (UsesManualHitboxes)
             {
-                return false;
+                // 랠리 모드에서는 조작 불쾌감을 방지하기 위해 매뉴얼 히트박스(물리 콜라이더) 외에
+                // 수학적 판정(Contains)도 하이브리드 백업 구제 수단으로 상시 가동합니다.
+                if (ballController == null || ballController.PlayMode != BallPlayMode.Rally)
+                {
+                    return false;
+                }
             }
 
             bool isServeToss = IsServeToss;
@@ -128,18 +133,61 @@ namespace CatTennis.Rebuild.Cat
                 return false;
             }
 
-            HitZoneDefinition zone = (action.SwingKind == SwingKind.Smash || isServeToss)
-                ? config.CreateSmashHitZone()
-                : config.CreateNormalHitZone();
-            if (!zoneModel.Contains(
-                    zone,
-                    playerPosition.x,
-                    playerPosition.y,
-                    facingDirection,
-                    ball.PositionX,
-                    ball.PositionY))
+            if (UsesManualHitboxes)
             {
-                return false;
+                // 랠리 모드 시 수동 지정한 BoxCollider2D의 실제 월드 영역을 기반으로 수학적 Contains 백업을 구동합니다.
+                // 이로써 수동 콜라이더 영역과 수학적 백업 영역의 크기가 100% 완벽하게 일치하여 허공 타격이 전혀 발생하지 않습니다.
+                if (ballController == null || ballController.PlayMode != BallPlayMode.Rally)
+                {
+                    return false;
+                }
+
+                ManualHitboxTrigger activeTrigger = (action.SwingKind == SwingKind.Smash || isServeToss)
+                    ? manualHitboxes.SmashHitbox
+                    : manualHitboxes.NormalHitbox;
+
+                if (activeTrigger == null || activeTrigger.Box == null)
+                {
+                    return false;
+                }
+
+                Bounds bounds = activeTrigger.Box.bounds;
+                // 헛방 방지 보정으로 수동 지정 콜라이더의 월드 바운즈에 20cm(0.2f) 버퍼만 더하여 프레임 관통 방지
+                bounds.Expand(0.2f);
+
+                if (!bounds.Contains(new Vector3(ball.PositionX, ball.PositionY, bounds.center.z)))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                HitZoneDefinition zone = (action.SwingKind == SwingKind.Smash || isServeToss)
+                    ? config.CreateSmashHitZone()
+                    : config.CreateNormalHitZone();
+
+                if (ballController.PlayMode == BallPlayMode.Rally)
+                {
+                    // 랠리 모드 시 타격 성공 체감과 수동 히트박스 일치를 위해 판정 범위를 12% 넓혀 후하게 판정합니다.
+                    zone = new HitZoneDefinition(
+                        zone.CenterX,
+                        zone.CenterY,
+                        zone.HalfWidth * 1.12f,
+                        zone.HalfHeight * 1.12f,
+                        zone.RequireForward
+                    );
+                }
+
+                if (!zoneModel.Contains(
+                        zone,
+                        playerPosition.x,
+                        playerPosition.y,
+                        facingDirection,
+                        ball.PositionX,
+                        ball.PositionY))
+                {
+                    return false;
+                }
             }
 
             EnsurePendingIntent(action, facingDirection);
@@ -150,14 +198,31 @@ namespace CatTennis.Rebuild.Cat
         private float CalculateHitHeightRatio(BallSnapshot ball, SwingKind swingKind)
         {
             if (config == null) return 0.5f;
+
+            if (UsesManualHitboxes)
+            {
+                ManualHitboxTrigger activeTrigger = (swingKind == SwingKind.Smash || IsServeToss)
+                    ? manualHitboxes.SmashHitbox
+                    : manualHitboxes.NormalHitbox;
+
+                if (activeTrigger != null && activeTrigger.Box != null)
+                {
+                    Bounds bounds = activeTrigger.Box.bounds;
+                    float relativeY = ball.PositionY - bounds.min.y;
+                    float height = bounds.size.y;
+                    if (height <= 0.0001f) return 0.5f;
+                    return Mathf.Clamp01(relativeY / height);
+                }
+            }
+
             HitZoneDefinition zone = (swingKind == SwingKind.Smash || IsServeToss)
                 ? config.CreateSmashHitZone()
                 : config.CreateNormalHitZone();
-            float relativeY = ball.PositionY - currentPlayerPosition.y;
+            float relativeYVal = ball.PositionY - currentPlayerPosition.y;
             float yMin = zone.CenterY - zone.HalfHeight;
             float yMax = zone.CenterY + zone.HalfHeight;
             if (yMax <= yMin) return 0.5f;
-            return Mathf.Clamp01((relativeY - yMin) / (yMax - yMin));
+            return Mathf.Clamp01((relativeYVal - yMin) / (yMax - yMin));
         }
 
         private void EmitShotRequest(PlayerActionFrame action, BallSnapshot ball, Vector2 playerPosition)
@@ -166,10 +231,11 @@ namespace CatTennis.Rebuild.Cat
             bool isCounteringSmash = (ballController != null &&
                                       ballController.PlayMode == BallPlayMode.Rally &&
                                       ballController.LastShotIntent == ShotIntent.Smash);
+            bool isCounteringKillSmash = isCounteringSmash && ballController.LastShotWasKillSmash;
             float ratio = CalculateHitHeightRatio(ball, action.SwingKind);
             ShotRequest request = new ShotRequest(pendingIntent, ball.StepIndex,
                 HitterType.Player, ball, playerPosition.x, playerPosition.y,
-                isServeToss, isCounteringSmash, ratio);
+                isServeToss, isCounteringSmash, ratio, false, isCounteringKillSmash);
             consumedSwingId = action.SwingId;
             OnShotRequested?.Invoke(request);
         }

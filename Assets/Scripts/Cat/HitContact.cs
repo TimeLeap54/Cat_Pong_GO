@@ -11,7 +11,8 @@ namespace CatTennis.Rebuild.Cat
         public HitContact(long pointId, long swingId, long ballStepIndex,
             HitterType hitter, ShotIntent intent, Vector2 actorPosition,
             BallSnapshot ballSnapshot, int facingDirection, long inputTick = 0,
-            bool isServeToss = false, bool isCounteringSmash = false, float hitHeightRatio = 0.5f)
+            bool isServeToss = false, bool isCounteringSmash = false, float hitHeightRatio = 0.5f,
+            bool isCounteringKillSmash = false)
         {
             if (pointId <= 0 || swingId <= 0 || ballStepIndex != ballSnapshot.StepIndex ||
                 hitter == HitterType.None || intent == ShotIntent.Undefined)
@@ -20,7 +21,7 @@ namespace CatTennis.Rebuild.Cat
             Hitter = hitter; Intent = intent; ActorPosition = actorPosition;
             BallSnapshot = ballSnapshot; FacingDirection = facingDirection; InputTick = inputTick;
             IsServeToss = isServeToss; IsCounteringSmash = isCounteringSmash;
-            HitHeightRatio = hitHeightRatio;
+            HitHeightRatio = hitHeightRatio; IsCounteringKillSmash = isCounteringKillSmash;
         }
         public long PointId { get; }
         public long SwingId { get; }
@@ -34,11 +35,12 @@ namespace CatTennis.Rebuild.Cat
         public bool IsServeToss { get; }
         public bool IsCounteringSmash { get; }
         public float HitHeightRatio { get; }
+        public bool IsCounteringKillSmash { get; }
 
         public ShotRequest ToShotRequest() => new ShotRequest(
             new SwingIntentSnapshot(PointId, SwingId, InputTick,
                 new Vector2(FacingDirection, 0f), FacingDirection, Intent),
             BallStepIndex, Hitter, BallSnapshot, ActorPosition.x, ActorPosition.y,
-            IsServeToss, IsCounteringSmash, HitHeightRatio);
+            IsServeToss, IsCounteringSmash, HitHeightRatio, false, IsCounteringKillSmash);
     }
 }

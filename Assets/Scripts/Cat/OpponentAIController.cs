@@ -14,6 +14,7 @@ namespace CatTennis.Rebuild.Cat
         private readonly DelayedBallObserver observer=new DelayedBallObserver();
         private readonly BallArrivalPredictor predictor=new BallArrivalPredictor();
         private readonly AIInterceptPlanner planner=new AIInterceptPlanner();
+        private readonly PlayerHitZoneModel hitZoneModel = new PlayerHitZoneModel();
         private BallController ball; private BallPhysicsConfig physicsConfig;
         private CourtGeometryConfig courtConfig; private PlayerControlConfig catConfig;
         private AIBalanceConfig aiConfig; private RallyFlowManager rally;
@@ -37,6 +38,7 @@ namespace CatTennis.Rebuild.Cat
         public PlayerActionFrame CurrentAction { get; private set; }
         public AISwingPlan CurrentPlan=>plan;
         public bool InputLocked { get; set; }
+        private bool UsesManualHitboxes => manualHitboxes != null && manualHitboxes.HasGameplayHitboxes;
 
         public void Configure(BallController ballController,BallPhysicsConfig physics,
             CourtGeometryConfig court,PlayerControlConfig cat,AIBalanceConfig ai,
@@ -48,6 +50,10 @@ namespace CatTennis.Rebuild.Cat
             player=playerController; rallyAiConfig=rallyBalance;
             ai.ValidateOrThrow(); motor=GetComponent<CatMotor>();
             motor.Configure(ai.MoveSpeed,ai.Acceleration,ai.Deceleration,ai.CourtMinX,ai.CourtMaxX);
+            
+            // AI의 물리 엔진 중력 배율을 플레이어와 완전히 동기화 (3.0f)
+            GetComponent<Rigidbody2D>().gravityScale = cat.GravityScale;
+
             actionMachine=new PlayerActionStateMachine(cat.CreateActionSettings()); initialized=true;
             manualHitboxes=GetComponent<OpponentManualHitboxController>();
             resetPosition=transform.position; ResetOpponent(resetPosition);
@@ -55,7 +61,7 @@ namespace CatTennis.Rebuild.Cat
 
         private void FixedUpdate()
         {
-            if(!initialized) return;
+            if(!initialized || actionMachine == null) return;
 
             if (rally != null && !rally.HasActivePoint)
             {
@@ -106,15 +112,31 @@ namespace CatTennis.Rebuild.Cat
             if (receiving && plan != null && !plan.Consumed)
             {
                 // [원바운드 타겟 직접 추적]
-                // 공이 네트를 돌파한 이후(X > 0)에만 바운스 낙하지점으로 이동 개시
-                // 공이 아직 플레이어 코트에 있으면 홈 포지션에서 대기
-                if (ball.CurrentSnapshot.PositionX > 0f)
+                // 공이 네트를 돌파하기 전에도 즉각 예측 낙하지점을 향해 추적을 시작하여 로브 수비 안정성 확보
+                target = plan.InterceptPosition.x;
+
+                // 타격 성공률을 높이기 위해, AI가 사용하는 히트박스의 수평 오프셋(CenterX)을 반영하여 
+                // 공의 중심이 아닌 히트박스의 중심에 공이 정렬되도록 서는 위치(target)를 미세 조정합니다.
+                if (UsesManualHitboxes)
                 {
-                    target = plan.InterceptPosition.x;
+                    OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
+                        ? manualHitboxes.SmashHitbox
+                        : manualHitboxes.NormalHitbox;
+                    if (activeTrigger != null && activeTrigger.Box != null)
+                    {
+                        // AI는 왼쪽을 바라보므로 localScale.x는 보통 음수(-1)입니다.
+                        float localScaleX = transform.localScale.x;
+                        float targetOffset = activeTrigger.Box.offset.x * (Mathf.Approximately(localScaleX, 0f) ? -1f : Mathf.Sign(localScaleX));
+                        target -= targetOffset;
+                    }
                 }
                 else
                 {
-                    target = aiConfig.HomeX;
+                    HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
+                        ? catConfig.CreateSmashHitZone() 
+                        : catConfig.CreateNormalHitZone();
+                    // AI는 왼쪽(-1방향)을 바라보므로 CenterX의 부호를 반전하여 오프셋 적용
+                    target += activeZone.CenterX;
                 }
             }
 
@@ -126,11 +148,64 @@ namespace CatTennis.Rebuild.Cat
             {
                 plan.RemainingTime-=Time.fixedDeltaTime;
                 bool grounded=IsGrounded();
-                jump=plan.JumpRequired&&grounded&&plan.RemainingTime<=aiConfig.JumpLeadTime&&plan.PlanId!=lastTriggeredJumpPlanId;
+                
+                // 점프 리드타임 동적 보정: AI의 점프 속도(7m/s)와 중력(3배 scale) 하에서 
+                // 최고 도달점(Peak)인 약 0.23s 부근에서 타격이 정확히 맞아떨어지도록 리드타임 보정 (기존 0.35s는 너무 일찍 뛰어 먼저 내려옴)
+                float optimalJumpLead = UsesManualHitboxes ? 0.23f : aiConfig.JumpLeadTime;
+                jump = plan.JumpRequired && grounded && plan.RemainingTime <= optimalJumpLead && plan.PlanId != lastTriggeredJumpPlanId;
                 if(jump) lastTriggeredJumpPlanId=plan.PlanId;
-                // [정적 타이머 기반 스윙 트리거]
-                // 원바운드 이후 공이 느리게 솟구치므로 RemainingTime 타이머만으로 정확한 타이밍에 스윙 가능
-                if (plan.RemainingTime <= aiConfig.SwingLeadTime && plan.PlanId != lastTriggeredSwingPlanId)
+
+                // [하이브리드 & 실시간 오버랩 스윙 판정]
+                // 1. 공이 AI의 실제 타격 범위(HitZone) 내로 진입했는지 실시간 체크
+                bool isBallOverlapping = false;
+                if (UsesManualHitboxes)
+                {
+                    OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
+                        ? manualHitboxes.SmashHitbox
+                        : manualHitboxes.NormalHitbox;
+
+                    if (activeTrigger != null && activeTrigger.Box != null)
+                    {
+                        Bounds bounds = activeTrigger.Box.bounds;
+                        // 스윙 선동작(Startup)을 감안하여 실제 콜라이더 바운즈에 20cm 마진을 확장하여 오버랩 체크
+                        bounds.Expand(0.2f);
+                        isBallOverlapping = bounds.Contains(new Vector3(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY, bounds.center.z));
+                    }
+                }
+                else
+                {
+                    HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
+                        ? catConfig.CreateSmashHitZone() 
+                        : catConfig.CreateNormalHitZone();
+                    
+                    HitZoneDefinition triggerZone = new HitZoneDefinition(
+                        activeZone.CenterX,
+                        activeZone.CenterY,
+                        activeZone.HalfWidth * 1.40f,
+                        activeZone.HalfHeight * 1.40f,
+                        activeZone.RequireForward
+                    );
+
+                    isBallOverlapping = hitZoneModel.Contains(
+                        triggerZone,
+                        motor.Position.x,
+                        motor.Position.y,
+                        -1,
+                        ball.CurrentSnapshot.PositionX,
+                        ball.CurrentSnapshot.PositionY
+                    );
+                }
+
+                // 2. 시간/거리 하이브리드 트리거 조건 만족 여부
+                // 예측 오차로 허공에 스윙하는 방지용 거리 가드 (X축 2.0f 이내, Y축 2.2f 이내)
+                float relX = Mathf.Abs(ball.CurrentSnapshot.PositionX - motor.Position.x);
+                float relY = Mathf.Abs(ball.CurrentSnapshot.PositionY - motor.Position.y);
+                bool isCloseEnough = relX <= 2.0f && relY <= 2.2f;
+
+                bool timeTrigger = plan.RemainingTime <= aiConfig.SwingLeadTime && isCloseEnough;
+                bool instantTrigger = isBallOverlapping; // 오버랩 시 즉각 격발
+
+                if ((timeTrigger || instantTrigger) && plan.PlanId != lastTriggeredSwingPlanId)
                 {
                     smash = plan.SwingKind == SwingKind.Smash;
                     swing = !smash;
@@ -150,6 +225,7 @@ namespace CatTennis.Rebuild.Cat
             {
                 manualHitboxes.ApplyAction(CurrentAction, -1);
             }
+            
             motor.Apply(CurrentAction.MoveX,CurrentAction.JumpRequested,aiConfig.JumpSpeed,Time.fixedDeltaTime);
             
             hitDetector.Evaluate(pointId, CurrentAction, motor.Position, -1, plan);
@@ -175,7 +251,7 @@ namespace CatTennis.Rebuild.Cat
             float maxCourtX = Mathf.Max(aiConfig.CourtMaxX, 8.5f);
             var candidates=predictor.Predict(observation.Snapshot,physicsConfig.CreateSettings(),
                 courtConfig.GroundY,aiConfig.PredictionStep,aiConfig.PredictionHorizon,
-                aiConfig.CourtMinX,maxCourtX,aiConfig.JumpHeightThreshold);
+                0.15f,maxCourtX,aiConfig.JumpHeightThreshold);
             float age=Time.fixedTime-observation.Time;
             
             float baseSpeed = aiConfig.MoveSpeed;
@@ -223,16 +299,29 @@ namespace CatTennis.Rebuild.Cat
 
         private ShotIntent DetermineShotIntent(AiTacticalContext ctx)
         {
-            if (ctx.ballArrivalRequiresJump && ctx.rallyCount >= 8 && UnityEngine.Random.value < 0.25f)
+            // 랠리 진행도에 따른 무자비도(Ruthlessness) 계산 (0.0 ~ 1.0)
+            // 랠리 초반(0~5회)에는 플레이어가 랠리를 이어갈 수 있도록 무난한 안전 리턴 위주로 치며, 
+            // 20회 이상 진행 시 100% 무자비 압박 모드로 돌입합니다.
+            float ruthlessness = Mathf.Clamp01(ctx.rallyCount / 20f);
+
+            // [상황 3: 공중 찬스 볼] 고궤도 체공 공 발생 시 스매시(Spike) 결정 (무자비도에 따라 스매시 격발 확률 85%까지 보간)
+            if (ctx.ballArrivalRequiresJump)
             {
-                return ShotIntent.Smash;
+                float smashChance = Mathf.Lerp(0.05f, 0.85f, ruthlessness);
+                if (UnityEngine.Random.value < smashChance)
+                {
+                    return ShotIntent.Smash;
+                }
             }
 
-            if ((ctx.playerRecentlyJumped || ctx.playerOutOfPosition) &&
-                rallyAiConfig != null &&
-                UnityEngine.Random.value < rallyAiConfig.MercyShotChanceWhenPlayerStruggling)
+            // 플레이어 실점 상태 위기 시의 자비 샷 발동 확률도 무자비도에 따라 0%로 감쇄
+            if (ctx.playerRecentlyJumped || ctx.playerOutOfPosition)
             {
-                return ShotIntent.SafeReturn;
+                float mercyChance = Mathf.Lerp(0.50f, 0.00f, ruthlessness);
+                if (UnityEngine.Random.value < mercyChance)
+                {
+                    return UnityEngine.Random.value < 0.6f ? ShotIntent.Lob : ShotIntent.SafeReturn;
+                }
             }
 
             float safeWeight = 0f;
@@ -240,35 +329,39 @@ namespace CatTennis.Rebuild.Cat
             float dropWeight = 0f;
             float lobWeight = 0f;
 
-            if (ctx.rallyCount < 8)
+            // 랠리 극초반(3회 이하)에는 랠리 정착을 위해 강제 안전 복구 샷
+            if (ctx.rallyCount < 3)
             {
                 return ShotIntent.SafeReturn;
             }
 
-            if (ctx.opponentNearNet)
+            // [상황 2: 플레이어가 네트 앞 전진 시] 머리 뒤 아웃라인 근처로 길게 넘겨서 패싱 (Deep 가중치를 무자비도에 따라 70%까지 점진적 강화)
+            if (ctx.playerNearNet)
             {
-                lobWeight = 0.70f;
-                safeWeight = 0.30f;
-                deepWeight = 0f;
-                dropWeight = 0f;
+                deepWeight = Mathf.Lerp(0.20f, 0.70f, ruthlessness);
+                lobWeight = Mathf.Lerp(0.10f, 0.15f, ruthlessness);
+                safeWeight = 1.0f - deepWeight - lobWeight;
             }
-            else if (ctx.playerNearNet)
-            {
-                deepWeight = 0.55f;
-                lobWeight = 0.30f;
-                safeWeight = 0.15f;
-            }
+            // [상황 1: 플레이어가 깊숙이 물러나 백코트에 있을 때] 네트 앞에 톡 떨어뜨림 (Drop 가중치를 무자비도에 따라 65%까지 점진적 강화)
             else if (ctx.playerDeepCourt)
             {
-                dropWeight = 0.45f;
-                safeWeight = 0.35f;
-                deepWeight = 0.20f;
+                dropWeight = Mathf.Lerp(0.10f, 0.65f, ruthlessness);
+                deepWeight = Mathf.Lerp(0.40f, 0.15f, ruthlessness);
+                safeWeight = 1.0f - dropWeight - deepWeight;
             }
+            // AI가 네트 근처에 수비하러 붙어있을 때: 길게 찌르기 빈도를 무자비도에 비례해 최대 60%까지 상향
+            else if (ctx.opponentNearNet)
+            {
+                deepWeight = Mathf.Lerp(0.35f, 0.60f, ruthlessness);
+                lobWeight = Mathf.Lerp(0.15f, 0.15f, ruthlessness);
+                safeWeight = 1.0f - deepWeight - lobWeight;
+            }
+            // 플레이어가 좌우/전후 위기 상황일 때 빈 공간 찌르기
             else if (ctx.playerOutOfPosition)
             {
-                deepWeight = 0.40f;
-                dropWeight = 0.30f;
-                safeWeight = 0.30f;
+                deepWeight = Mathf.Lerp(0.30f, 0.50f, ruthlessness);
+                dropWeight = Mathf.Lerp(0.20f, 0.40f, ruthlessness);
+                safeWeight = 1.0f - deepWeight - dropWeight;
             }
             else
             {

@@ -157,10 +157,9 @@ namespace CatTennis.Rebuild.Flow
             pointBridge.SetPlayerReset(player, pointLoopConfig.PlayerResetPosition);
             player.SetMovementBalance(movementBalanceConfig);
             pointBridge.SetMovementBalance(movementBalanceConfig);
-            shotExecutor.Configure(pointBridge,shotBalanceConfig,ballPhysicsConfig,courtGeometryConfig);
+            shotExecutor.Configure(pointBridge,shotBalanceConfig,ballPhysicsConfig,courtGeometryConfig, rallyAiConfig);
             pointBridge.SetShotExecutor(shotExecutor);
-            shotBridge.Configure(hitDetector, pointBridge, shotBalanceConfig,
-                ballPhysicsConfig, courtGeometryConfig,shotExecutor);
+            shotBridge.Configure(hitDetector, shotExecutor);
             opponentHitDetector.Configure(ball,playerControlConfig,shotExecutor);
             opponent.Configure(ball,ballPhysicsConfig,courtGeometryConfig,playerControlConfig,
                 aiBalanceConfig,rally,opponentHitDetector, player, rallyAiConfig);

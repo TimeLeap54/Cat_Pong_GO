@@ -125,7 +125,6 @@ namespace CatTennis.BallPhysics.Core
                             velocityY = System.Math.Max(velocityY, 2.2f);
                             positionX = snapshot.PositionX > netX ? netX + 0.15f : netX - 0.15f; // 자기 진영으로 밀림
                         }
-                        didBounce = true;
                     }
                 }
             }

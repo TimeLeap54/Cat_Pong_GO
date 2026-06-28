@@ -20,6 +20,7 @@ namespace CatTennis.Rebuild.Flow
         public RallyContext CurrentContext => context;
         public long GlobalPointId => globalPointId;
         public int RallyHitCount => rallyHitCount;
+        public bool IsRallyMode { get; set; } = true;
         public bool HasActivePoint => hasPoint &&
                                       context.State != RallyState.Ended &&
                                       !pointResultEmitted;
