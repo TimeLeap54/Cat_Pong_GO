@@ -326,12 +326,17 @@ namespace CatTennis.Rebuild.Cat
                 intent = ShotIntent.Serve;
             }
 
-            SwingKind kind=intent==ShotIntent.Smash?SwingKind.Smash:SwingKind.Normal;
+            // [물리적 요건과 스윙 종류의 강제 일치화]
+            // 점프가 요구되는 상황(RequiresJump == true)이라면, 
+            // 전술적 샷 종류(intent)에 상관없이 무조건 공중용 스매시 히트박스(SwingKind.Smash)를 활성화하여 헛스윙을 차단합니다.
             bool requiresJump = candidate.RequiresJump;
             if (intent == ShotIntent.Serve || ball.PlayMode == BallPlayMode.ServeToss)
             {
                 requiresJump = false;
             }
+
+            SwingKind kind = requiresJump ? SwingKind.Smash : SwingKind.Normal;
+
             plan=new AISwingPlan(observation.PointId,id,observation.ObservationId,candidate.StepIndex,
                 kind,intent,Mathf.Max(0f,candidate.ArrivalTime-age),candidate.Position,requiresJump,
                 candidate.BounceCountBeforeArrival);
@@ -339,12 +344,18 @@ namespace CatTennis.Rebuild.Cat
 
         private ShotIntent DetermineShotIntent(AiTacticalContext ctx)
         {
+            // 랠리 극초반(3회 이하)에는 무조건 랠리 유지를 위해 안전하게 리턴
+            if (ctx.rallyCount < 3)
+            {
+                return ShotIntent.SafeReturn;
+            }
+
             // 랠리 진행도에 따른 무자비도(Ruthlessness) 계산 (0.0 ~ 1.0)
-            // 랠리 초반(0~5회)에는 플레이어가 랠리를 이어갈 수 있도록 무난한 안전 리턴 위주로 치며, 
-            // 20회 이상 진행 시 100% 무자비 압박 모드로 돌입합니다.
+            // 랠리가 20회 이상 지속될수록 자비 없는 찌르기 빈도를 극대화합니다.
             float ruthlessness = Mathf.Clamp01(ctx.rallyCount / 20f);
 
-            // [상황 3: 공중 찬스 볼] 고궤도 체공 공 발생 시 스매시(Spike) 결정 (무자비도에 따라 스매시 격발 확률 85%까지 보간)
+            // [공중 찬스 볼 상황] 
+            // 점프가 필요한 높은 체공 볼인 경우, 무자비도에 따라 스매시(Spike) 격발 확률 적용 (최대 85%)
             if (ctx.ballArrivalRequiresJump)
             {
                 float smashChance = Mathf.Lerp(0.05f, 0.85f, ruthlessness);
@@ -354,55 +365,41 @@ namespace CatTennis.Rebuild.Cat
                 }
             }
 
-            // 플레이어 실점 상태 위기 시의 자비 샷 발동 확률도 무자비도에 따라 0%로 감쇄
-            if (ctx.playerRecentlyJumped || ctx.playerOutOfPosition)
-            {
-                float mercyChance = Mathf.Lerp(0.50f, 0.00f, ruthlessness);
-                if (UnityEngine.Random.value < mercyChance)
-                {
-                    return UnityEngine.Random.value < 0.6f ? ShotIntent.Lob : ShotIntent.SafeReturn;
-                }
-            }
-
+            // [상황별 기본 전술 가중치 테이블 구성]
             float safeWeight = 0f;
             float deepWeight = 0f;
             float dropWeight = 0f;
             float lobWeight = 0f;
 
-            // 랠리 극초반(3회 이하)에는 랠리 정착을 위해 강제 안전 복구 샷
-            if (ctx.rallyCount < 3)
-            {
-                return ShotIntent.SafeReturn;
-            }
-
-            // [상황 2: 플레이어가 네트 앞 전진 시] 머리 뒤 아웃라인 근처로 길게 넘겨서 패싱 (Deep 가중치를 무자비도에 따라 70%까지 점진적 강화)
+            // 1. 유저가 네트 근처에 있음 -> 패싱 샷 유도 (머리 뒤 아웃라인 깊숙이 넘기기)
             if (ctx.playerNearNet)
             {
                 deepWeight = Mathf.Lerp(0.20f, 0.70f, ruthlessness);
                 lobWeight = Mathf.Lerp(0.10f, 0.15f, ruthlessness);
                 safeWeight = 1.0f - deepWeight - lobWeight;
             }
-            // [상황 1: 플레이어가 깊숙이 물러나 백코트에 있을 때] 네트 앞에 톡 떨어뜨림 (Drop 가중치를 무자비도에 따라 65%까지 점진적 강화)
+            // 2. 유저가 백코트 깊숙이 있음 -> 드롭 샷 유도 (네트 앞에 툭 떨어뜨리기)
             else if (ctx.playerDeepCourt)
             {
                 dropWeight = Mathf.Lerp(0.10f, 0.65f, ruthlessness);
                 deepWeight = Mathf.Lerp(0.40f, 0.15f, ruthlessness);
                 safeWeight = 1.0f - dropWeight - deepWeight;
             }
-            // AI가 네트 근처에 수비하러 붙어있을 때: 길게 찌르기 빈도를 무자비도에 비례해 최대 60%까지 상향
+            // 3. AI 본인이 수비하러 네트 부근에 있음 -> 길게 찔러서 역습
             else if (ctx.opponentNearNet)
             {
                 deepWeight = Mathf.Lerp(0.35f, 0.60f, ruthlessness);
                 lobWeight = Mathf.Lerp(0.15f, 0.15f, ruthlessness);
                 safeWeight = 1.0f - deepWeight - lobWeight;
             }
-            // 플레이어가 좌우/전후 위기 상황일 때 빈 공간 찌르기
+            // 4. 유저가 좌우/전후 위기 상황임 -> 빈 공간 깊거나 짧게 찌르기
             else if (ctx.playerOutOfPosition)
             {
                 deepWeight = Mathf.Lerp(0.30f, 0.50f, ruthlessness);
                 dropWeight = Mathf.Lerp(0.20f, 0.40f, ruthlessness);
                 safeWeight = 1.0f - deepWeight - dropWeight;
             }
+            // 5. 일반 랠리 상황 -> Config 에 정의된 기본 밸런스 가중치 적용
             else
             {
                 if (rallyAiConfig != null)
@@ -421,14 +418,27 @@ namespace CatTennis.Rebuild.Cat
                 }
             }
 
-            if (lastAiShotIntent == ShotIntent.Drop)
+            // [상황 6: 플레이어 위기 시 자비(Mercy) 샷 보정]
+            // 유저가 점프 후 착지 중이거나 위기 상황일 때 가벼운 로브 등으로 살려줄 자비 확률 (무자비도에 따라 0%로 감쇄)
+            if (ctx.playerRecentlyJumped || ctx.playerOutOfPosition)
             {
-                dropWeight = 0f;
+                float mercyChance = Mathf.Lerp(0.50f, 0.00f, ruthlessness);
+                if (UnityEngine.Random.value < mercyChance)
+                {
+                    // 자비 발동 시 가중치를 로브 및 안전 샷으로 강제 전환
+                    deepWeight = 0f;
+                    dropWeight = 0f;
+                    safeWeight = 0.4f;
+                    lobWeight = 0.6f;
+                }
             }
-            if (lastAiShotIntent == ShotIntent.Lob)
-            {
-                lobWeight = 0f;
-            }
+
+            // [상황 7: 연속적인 동일/압박 전술 반복 금지]
+            // 드롭이나 로브는 연속해서 두 번 사용하지 않게 방지하여 단조로움을 피합니다.
+            if (lastAiShotIntent == ShotIntent.Drop) dropWeight = 0f;
+            if (lastAiShotIntent == ShotIntent.Lob) lobWeight = 0f;
+
+            // 극단적인 공격 샷(Deep, Drop, Lob)이 2회 연속 남발되는 것을 감쇄
             if (consecutivePressureShotsCount >= 2)
             {
                 deepWeight = 0f;
