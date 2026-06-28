@@ -35,6 +35,10 @@ namespace CatTennis.Rebuild.Cat
         private long lastTriggeredJumpPlanId = -1;
         private int lastRallyHitCount = -1;
 
+        // [자료구조/복잡도 다이어트] 궤적 캐싱용 전용 버퍼 및 상태 플래그
+        private System.Collections.Generic.List<BallArrivalCandidate> cachedCandidates = new System.Collections.Generic.List<BallArrivalCandidate>();
+        private int lastPredictedRallyCount = -1;
+
         public PlayerActionFrame CurrentAction { get; private set; }
         public AISwingPlan CurrentPlan=>plan;
         public bool InputLocked { get; set; }
@@ -72,184 +76,214 @@ namespace CatTennis.Rebuild.Cat
                 return;
             }
 
-            // 랠리 히트 수가 변경되었을 때만 모터 속도를 재조정하여 성능 낭비를 방지 (가/감속 1000f 고정)
             int currentHitCount = rally != null ? rally.RallyHitCount : 0;
-            if (currentHitCount != lastRallyHitCount)
-            {
-                lastRallyHitCount = currentHitCount;
-                // AI 속도를 랠리 횟수와 상관없이 aiConfig.MoveSpeed 고정값으로 고정하여 물리적 안정성을 100% 보장합니다.
-                float baseSpeed = aiConfig.MoveSpeed;
-                float maxCourtX = Mathf.Max(aiConfig.CourtMaxX, 8.5f);
-                motor.Configure(baseSpeed, 1000f, 1000f, aiConfig.CourtMinX, maxCourtX);
-            }
+            long pointId = rally.GlobalPointId;
 
-            long pointId=rally.GlobalPointId;
-
+            // AI 서브 상황인지 체크
             bool isAiServeToss = ball.PlayMode == BallPlayMode.ServeToss && ball.CurrentSnapshot.PositionX > 0f;
             bool receiving = (ball.PlayMode == BallPlayMode.Rally && rally.CurrentContext.ExpectedReceiver == CourtSide.Opponent) || isAiServeToss;
 
-            observer.Record(pointId,Time.fixedTime,ball.CurrentSnapshot,ball.PlayMode);
-
-            // 모든 상황(서브/랠리)에서 즉각 반응(1틱 지연 = 0.02s)하도록 통일하여 고궤도 굳음 현상 완치
-            float reaction = 0.02f;
-
-            decisionTimer -= Time.fixedDeltaTime;
-            bool canUpdatePlan = decisionTimer <= 0f;
-            bool mustUpdate = plan == null || plan.Consumed;
-
-            if (receiving && (canUpdatePlan || mustUpdate))
+            // ----------------------------------------------------
+            // [자료구조/복잡도 다이어트] 궤적 캐싱 연동
+            // ----------------------------------------------------
+            // 랠리 히트수가 변경되었을 때(공이 타격되어 새로 날아오기 시작한 순간) 
+            // 딱 1회만 예측 시뮬레이션을 돌려 궤적 전체를 캐싱합니다. (매 프레임 125회 루프 낭비 차단)
+            if (currentHitCount != lastPredictedRallyCount)
             {
-                if (observer.TryGet(Time.fixedTime, reaction, out var delayed) &&
-                    delayed.PointId == pointId && (delayed.PlayMode == BallPlayMode.Rally || delayed.PlayMode == BallPlayMode.ServeToss))
+                lastPredictedRallyCount = currentHitCount;
+                float maxCourtX = Mathf.Max(aiConfig.CourtMaxX, 8.5f);
+                var freshCandidates = predictor.Predict(ball.CurrentSnapshot, physicsConfig.CreateSettings(),
+                    courtConfig.GroundY, aiConfig.PredictionStep, aiConfig.PredictionHorizon,
+                    0.15f, maxCourtX, aiConfig.JumpHeightThreshold);
+
+                cachedCandidates.Clear();
+                if (freshCandidates != null)
                 {
-                    decisionTimer = 0.12f;
-                    UpdatePlan(delayed);
+                    for (int i = 0; i < freshCandidates.Count; i++)
+                    {
+                        cachedCandidates.Add(freshCandidates[i]);
+                    }
                 }
+                
+                // 새로운 궤적이 들어왔으므로 기존 수비 플랜은 즉시 폐기하여 갱신을 유도합니다.
+                plan = null;
             }
 
-            float moveX = 0f; bool jump = false; bool swing = false; bool smash = false;
-            float target = aiConfig.HomeX;
-
-            // [수비 중 플랜 부재 시 필사적 폴백 추적]
-            // 플래너가 도달 불가능하다고 판정했거나 이전 플랜이 만료(Consumed)되었더라도,
-            // 여전히 수비 상황(receiving == true)이라면 홈 포지션으로 후퇴(으아아악 백스텝)하지 않고
-            // 공의 현재 실시간 X좌표를 향해 끝까지 필사적으로 대시하여 받아내려 시도하게 만듭니다.
+            // 수비 상황이고 현재 세워진 계획이 없거나 만료되었다면, 캐싱된 버퍼를 기반으로 굳건한 수비 계획 수립
             if (receiving && (plan == null || plan.Consumed))
             {
-                target = ball.CurrentSnapshot.PositionX;
+                UpdatePlan(currentHitCount);
             }
 
-            if (receiving && plan != null && !plan.Consumed)
+            // ----------------------------------------------------
+            // 1층: 물리 락 (Action Lock) 레이어
+            // ----------------------------------------------------
+            // 스윙 중이거나 점프 공중 상태인 경우, AI의 새로운 조작 판단을 원천 중단하여 
+            // 꼬임 없이 물리 액션이 끝까지 완수되도록 락(Lock)을 겁니다.
+            bool airborne = !IsGrounded();
+            bool swingActive = CurrentAction != null && CurrentAction.SwingState != SwingState.Ready;
+            if (airborne || swingActive)
             {
-                // [원바운드 수비 시 후방 선제 회군 및 대기]
-                // 1바운드 수비 계획이고, 공이 AI의 머리를 넘어 등 뒤로 떨어질 예정일 때(최종 낙하지점이 AI의 현재 위치 부근이거나 그 뒤일 때),
-                // 타격 여유 시간(RemainingTime > 0.4초)이 넉넉하다면 미리 낙하지점보다 약 0.7m 뒤로 물러나 대기하게 만듭니다.
-                // 이로 인해 어중간하게 스쳐 지나가듯 떨어지는 하프 로브 샷도 헛스윙 없이 정면에서 안전하게 받아낼 수 있습니다.
-                if (plan.BounceCountBeforeArrival == 1 && plan.RemainingTime > 0.4f && plan.InterceptPosition.x >= motor.Position.x - 0.2f)
+                // 점프/스윙 락 상태에서는 motor.Apply에 기존 결정된 명령만 연속 연동되도록 early return합니다.
+                bool onGround = IsGrounded();
+                CurrentAction = actionMachine.Step(new PlayerInputFrame(0f, false, false, false, 0f, ++inputTick), onGround);
+                if (manualHitboxes != null)
                 {
-                    target = Mathf.Clamp(plan.InterceptPosition.x + 0.7f, aiConfig.HomeX, aiConfig.CourtMaxX - 0.2f);
+                    manualHitboxes.ApplyAction(CurrentAction, -1);
                 }
-                else
-                {
-                    target = plan.InterceptPosition.x;
+                motor.Apply(CurrentAction.MoveX, CurrentAction.JumpRequested, aiConfig.JumpSpeed, Time.fixedDeltaTime);
+                hitDetector.Evaluate(pointId, CurrentAction, motor.Position, -1, plan);
+                return;
+            }
 
-                    // 타격 성공률을 높이기 위해, AI가 사용하는 히트박스의 수평 오프셋(CenterX)을 반영하여 
-                    // 공의 중심이 아닌 히트박스의 중심에 공이 정렬되도록 서는 위치(target)를 미세 조정합니다.
-                    float offsetVal = 0.5f;
-                    if (UsesManualHitboxes)
+            // ----------------------------------------------------
+            // 2층: 수평 이동 (Movement) 레이어
+            // ----------------------------------------------------
+            // 이동 목표(target)는 공격용 점프/스윙 샷 결정 여부와 완전히 무관하게 작동합니다.
+            float target = aiConfig.HomeX;
+
+            if (receiving)
+            {
+                if (plan != null && !plan.Consumed)
+                {
+                    float targetX = plan.InterceptPosition.x;
+
+                    // [수비 4대 시나리오 하드코딩 물리 가드 적용]
+                    // 1. 머리 위 뒤로 슥 넘어가는 깊은 롭 (딥 롭 / S2-3, S2-5)
+                    // 최고 높이 Y >= 2.5f 이상이거나 낙하지점이 5.8f 이상인 딥 볼은 
+                    // 공중에서 가로채려 하지 않고 즉시 백코트 최후방 6.8f로 전속력 후퇴합니다.
+                    bool isDeepLob = false;
+                    for (int i = 0; i < cachedCandidates.Count; i++)
                     {
-                        OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
-                            ? manualHitboxes.SmashHitbox
-                            : manualHitboxes.NormalHitbox;
-                        if (activeTrigger != null && activeTrigger.Box != null)
+                        if (cachedCandidates[i].Position.y >= 2.5f || cachedCandidates[i].Position.x >= 5.8f)
                         {
-                            offsetVal = Mathf.Abs(activeTrigger.Box.offset.x);
+                            isDeepLob = true;
+                            break;
                         }
+                    }
+
+                    if (isDeepLob)
+                    {
+                        target = 6.8f;
                     }
                     else
                     {
-                        HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
-                            ? catConfig.CreateSmashHitZone() 
-                            : catConfig.CreateNormalHitZone();
-                        offsetVal = activeZone.CenterX;
+                        target = targetX;
+
+                        // 타격 성공률 제고용 히트박스 절대 offsetVal(약 0.85m) 마진 반영
+                        float offsetVal = 0.85f;
+                        target += offsetVal;
+
+                        // 2. 네트 앞 짧은 공 오버런 가드 (숏 드롭 / S2-1, S2-7)
+                        // 네트 앞 2.3m 안전 제동 한계선을 강제 고정하여 과도한 전방 돌진 헛방을 방지합니다.
+                        target = Mathf.Max(target, 2.3f);
                     }
-
-                    // AI는 항상 왼쪽(-1방향)을 바라보므로, 월드 기준 공보다 오른쪽(값 증가)에 서야 히트박스가 공에 맞닿습니다.
-                    target += offsetVal;
-
-                    // [전방 오버슛(지나침) 방지용 강력 가드]
-                    // 네트 앞으로 떨어지는 짧은 공(Short Drop)을 받기 위해 앞으로 돌진할 때, 
-                    // 속도 관성으로 인해 낙하지점보다 지나치게 네트 쪽(왼쪽)으로 미끄러져 들어가 뒤통수로 공을 흘리는 현상을 막습니다.
-                    // 목표 위치(target)가 공의 예측 낙하지점 X보다 네트 방향(왼쪽)으로 침범하는 것을 원천 금지합니다.
-                    target = Mathf.Max(target, plan.InterceptPosition.x + (offsetVal * 0.8f));
+                }
+                else
+                {
+                    // [수비 중 플랜 부재 시 필사적 폴백 추적]
+                    // 계획 수립이 일시적으로 지연되더라도 홈으로 복귀하지 않고 끝까지 공을 쫓아갑니다.
+                    target = Mathf.Max(ball.CurrentSnapshot.PositionX + 0.85f, 2.3f);
                 }
             }
 
-            if (Mathf.Abs(target - motor.Position.x) > 0.08f)
+            // 이동 축 가중치 결정 및 모터 조작
+            float distance = target - motor.Position.x;
+            float moveX = 0f;
+            if (Mathf.Abs(distance) > 0.05f)
             {
-                moveX = Mathf.Sign(target - motor.Position.x);
+                moveX = Mathf.Sign(distance);
             }
-            if(plan!=null && !plan.Consumed)
-            {
-                plan.RemainingTime-=Time.fixedDeltaTime;
 
-                // [플랜 만료 시간 가드]
-                // 계획된 볼 도달 시간보다 0.15초(7.5틱) 이상 지나갔는데도 타격에 실패했다면, 
-                // 해당 플랜은 완전히 실패한(Whiff/Outdated) 것으로 간주하여 즉시 폐기하고 신규 수비 플랜을 수립하도록 허용합니다.
+            // ----------------------------------------------------
+            // 3층: 격발 트리거 (Trigger) 레이어
+            // ----------------------------------------------------
+            // 이동 중에는 샷 결정을 전혀 하지 않고 일관되게 달리며,
+            // 공이 타격 사정거리(1.1m) 내로 임팩트한 정확한 1프레임에만 의사결정을 격발합니다.
+            bool jump = false; bool swing = false; bool smash = false;
+
+            if (receiving && plan != null && !plan.Consumed)
+            {
+                // 실시간 공과의 잔여 타이밍 감쇠
+                plan.RemainingTime = Mathf.Max(-0.2f, plan.RemainingTime - Time.fixedDeltaTime);
+
+                // 플랜 타격 지연 초과 가드
                 if (plan.RemainingTime < -0.15f)
                 {
                     plan.Consumed = true;
                     plan = null;
                 }
-            }
-
-            if(plan!=null && !plan.Consumed)
-            {
-                bool grounded=IsGrounded();
-                
-                // 점프 리드타임 동적 보정: AI의 점프 속도(7m/s)와 중력(3배 scale) 하에서 
-                // 최고 도달점(Peak)인 약 0.23s 부근에서 타격이 정확히 맞아떨어지도록 리드타임 보정 (기존 0.35s는 너무 일찍 뛰어 먼저 내려옴)
-                float optimalJumpLead = UsesManualHitboxes ? 0.23f : aiConfig.JumpLeadTime;
-                jump = plan.JumpRequired && grounded && plan.RemainingTime <= optimalJumpLead && plan.PlanId != lastTriggeredJumpPlanId;
-                if(jump) lastTriggeredJumpPlanId=plan.PlanId;
-
-                // [하이브리드 & 실시간 오버랩 스윙 판정]
-                // 1. 공이 AI의 실제 타격 범위(HitZone) 내로 진입했는지 실시간 체크
-                bool isBallOverlapping = false;
-                if (UsesManualHitboxes)
-                {
-                    OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
-                        ? manualHitboxes.SmashHitbox
-                        : manualHitboxes.NormalHitbox;
-
-                    if (activeTrigger != null && activeTrigger.Box != null)
-                    {
-                        Bounds bounds = activeTrigger.Box.bounds;
-                        // 스윙 선동작(Startup)을 감안하여 실제 콜라이더 바운즈에 20cm 마진을 확장하여 오버랩 체크
-                        bounds.Expand(0.2f);
-                        isBallOverlapping = bounds.Contains(new Vector3(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY, bounds.center.z));
-                    }
-                }
                 else
                 {
-                    HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
-                        ? catConfig.CreateSmashHitZone() 
-                        : catConfig.CreateNormalHitZone();
-                    
-                    HitZoneDefinition triggerZone = new HitZoneDefinition(
-                        activeZone.CenterX,
-                        activeZone.CenterY,
-                        activeZone.HalfWidth * 1.40f,
-                        activeZone.HalfHeight * 1.40f,
-                        activeZone.RequireForward
-                    );
+                    float relX = Mathf.Abs(ball.CurrentSnapshot.PositionX - motor.Position.x);
+                    float relY = Mathf.Abs(ball.CurrentSnapshot.PositionY - motor.Position.y);
+                    bool isCloseEnough = relX <= 1.1f && relY <= 2.2f;
 
-                    isBallOverlapping = hitZoneModel.Contains(
-                        triggerZone,
-                        motor.Position.x,
-                        motor.Position.y,
-                        -1,
-                        ball.CurrentSnapshot.PositionX,
-                        ball.CurrentSnapshot.PositionY
-                    );
-                }
+                    // 남은 시간 및 근접성 트리거 연동
+                    bool timeTrigger = plan.RemainingTime <= aiConfig.SwingLeadTime && isCloseEnough;
 
-                // 2. 시간/거리 하이브리드 트리거 조건 만족 여부
-                // 예측 오차로 허공에 스윙하는 방지용 거리 가드 정밀화 (수평 X축 1.1f 이내, Y축 2.2f 이내)
-                float relX = Mathf.Abs(ball.CurrentSnapshot.PositionX - motor.Position.x);
-                float relY = Mathf.Abs(ball.CurrentSnapshot.PositionY - motor.Position.y);
-                bool isCloseEnough = relX <= 1.1f && relY <= 2.2f;
+                    if (timeTrigger && plan.PlanId != lastTriggeredSwingPlanId)
+                    {
+                        lastTriggeredSwingPlanId = plan.PlanId;
 
-                bool timeTrigger = plan.RemainingTime <= aiConfig.SwingLeadTime && isCloseEnough;
-                bool instantTrigger = isBallOverlapping; // 오버랩 시 즉각 격발
+                        // [타격 시점 1회 전술 의사결정 수행]
+                        AiTacticalContext ctx = new AiTacticalContext();
+                        ctx.playerPosition = player != null ? player.Position : Vector2.zero;
+                        ctx.opponentPosition = motor.Position;
+                        ctx.ballPosition = new Vector2(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY);
+                        ctx.predictedBallArrival = plan.InterceptPosition;
+                        ctx.playerNearNet = player != null && player.Position.x > -2.5f;
+                        ctx.playerDeepCourt = player != null && player.Position.x < -5.5f;
+                        ctx.playerLeftSide = player != null && player.Position.x < -4.25f;
+                        ctx.playerRightSide = player != null && player.Position.x >= -4.25f;
+                        ctx.playerRecentlyJumped = player != null && player.CurrentAction.LocomotionState == LocomotionState.Airborne;
+                        ctx.rallyCount = currentHitCount;
+                        ctx.playerOutOfPosition = player != null && Mathf.Abs(player.Position.x - plan.InterceptPosition.x) > 2.5f;
+                        ctx.ballArrivalRequiresJump = plan.JumpRequired || ball.CurrentSnapshot.PositionY >= 2.1f;
+                        ctx.opponentNearNet = motor.Position.x < 2.5f;
 
-                if ((timeTrigger || instantTrigger) && plan.PlanId != lastTriggeredSwingPlanId)
-                {
-                    smash = plan.SwingKind == SwingKind.Smash;
-                    swing = !smash;
-                    lastTriggeredSwingPlanId = plan.PlanId;
+                        ShotIntent intent = DetermineShotIntent(ctx);
+                        if (ball.PlayMode == BallPlayMode.ServeToss || isAiServeToss)
+                        {
+                            intent = ShotIntent.Serve;
+                        }
+
+                        bool requiresJump = ctx.ballArrivalRequiresJump;
+                        if (intent == ShotIntent.Serve)
+                        {
+                            requiresJump = false;
+                        }
+
+                        if (requiresJump && intent.Swing == SwingKind.Smash)
+                        {
+                            jump = true;
+                            smash = true;
+                            lastTriggeredJumpPlanId = plan.PlanId;
+                        }
+                        else
+                        {
+                            swing = true;
+                        }
+
+                        // 플랜 소모 완료 처리 및 의도 주입
+                        plan.Intent = intent;
+                        plan.MarkConsumed();
+
+                        // 물리 격발 동작 인가
+                        if (jump) motor.Jump();
+                        
+                        if (smash)
+                        {
+                            CurrentAction = PlayerActionFrame.CreateSmash(pointId);
+                        }
+                        else if (swing)
+                        {
+                            CurrentAction = PlayerActionFrame.CreateReturn(pointId, intent.Shot);
+                        }
+                    }
                 }
             }
+
             if (InputLocked)
             {
                 moveX = 0f;
@@ -257,15 +291,20 @@ namespace CatTennis.Rebuild.Cat
                 swing = false;
                 smash = false;
             }
-            bool onGround=IsGrounded();
-            CurrentAction=actionMachine.Step(new PlayerInputFrame(moveX,jump,swing,smash,0f,++inputTick),onGround);
+
+            // 락이 걸리지 않은 평범한 프레임인 경우, 모터 조작 값 업데이트
+            if (CurrentAction == null || CurrentAction.SwingState == SwingState.Ready)
+            {
+                bool onGround = IsGrounded();
+                CurrentAction = actionMachine.Step(new PlayerInputFrame(moveX, jump, swing, smash, 0f, ++inputTick), onGround);
+            }
+
             if (manualHitboxes != null)
             {
                 manualHitboxes.ApplyAction(CurrentAction, -1);
             }
-            
-            motor.Apply(CurrentAction.MoveX,CurrentAction.JumpRequested,aiConfig.JumpSpeed,Time.fixedDeltaTime);
-            
+
+            motor.Apply(CurrentAction.MoveX, CurrentAction.JumpRequested, aiConfig.JumpSpeed, Time.fixedDeltaTime);
             hitDetector.Evaluate(pointId, CurrentAction, motor.Position, -1, plan);
 
             if (plan != null && plan.Consumed && plan.PlanId != lastRecordedPlanId)
@@ -275,76 +314,22 @@ namespace CatTennis.Rebuild.Cat
             }
         }
 
-        private void UpdatePlan(DelayedBallObservation observation)
+        private void UpdatePlan(int currentHitCount)
         {
-            bool forceBounce = false;
-            if (plan != null && !plan.Consumed && plan.PointId == observation.PointId)
-            {
-                // [1바운드 수비 굳건화 잠금]
-                // 1바운드 수비 도중 발리 수비로 번복하여 갈팡질팡(지터링)하는 오작동은 전면 차단하되,
-                // 실시간 낙하지점의 미세 수정(갱신)은 1바운드 궤적 내에서 지속적으로 허용하여 타격 정확도를 올립니다.
-                if (plan.BounceCountBeforeArrival == 1)
-                {
-                    forceBounce = true;
-                }
-
-                bool airborne = !IsGrounded();
-                bool swingActive = CurrentAction.SwingState != SwingState.Ready;
-                if (airborne || swingActive)
-                {
-                    return;
-                }
-            }
-            float maxCourtX = Mathf.Max(aiConfig.CourtMaxX, 8.5f);
-            var candidates=predictor.Predict(observation.Snapshot,physicsConfig.CreateSettings(),
-                courtConfig.GroundY,aiConfig.PredictionStep,aiConfig.PredictionHorizon,
-                0.15f,maxCourtX,aiConfig.JumpHeightThreshold);
-            float age=Time.fixedTime-observation.Time;
-            
-            // 미래 예측 시뮬레이션용 속도도 고정값을 사용하여 궤도 오판을 원천 차단합니다.
             float baseSpeed = aiConfig.MoveSpeed;
-
             bool isServe = ball.PlayMode == BallPlayMode.ServeToss;
-            if(!planner.TrySelect(candidates,motor.Position.x,baseSpeed,age,
-                    aiConfig.SwingLeadTime,aiConfig.JumpLeadTime,isServe,forceBounce,out var candidate)) return;
-            long id=++nextPlanId;
 
-            AiTacticalContext ctx = new AiTacticalContext();
-            ctx.playerPosition = player != null ? player.Position : Vector2.zero;
-            ctx.opponentPosition = motor.Position;
-            ctx.ballPosition = new Vector2(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY);
-            ctx.predictedBallArrival = candidate.Position;
-            ctx.playerNearNet = player != null && player.Position.x > -2.5f;
-            ctx.playerDeepCourt = player != null && player.Position.x < -5.5f;
-            ctx.playerLeftSide = player != null && player.Position.x < -4.25f;
-            ctx.playerRightSide = player != null && player.Position.x >= -4.25f;
-            ctx.playerRecentlyJumped = player != null && player.CurrentAction.LocomotionState == LocomotionState.Airborne;
-            ctx.rallyCount = rally != null ? rally.RallyHitCount : 0;
-            ctx.playerOutOfPosition = player != null && Mathf.Abs(player.Position.x - candidate.Position.x) > 2.5f;
-            ctx.ballArrivalRequiresJump = candidate.RequiresJump;
-            ctx.opponentNearNet = motor.Position.x < 2.5f;
-
-            ShotIntent intent = DetermineShotIntent(ctx);
-
-            if (ball.PlayMode == BallPlayMode.ServeToss)
+            if (!planner.TrySelect(cachedCandidates, motor.Position.x, baseSpeed, 0f,
+                    aiConfig.SwingLeadTime, aiConfig.JumpLeadTime, isServe, false, out var candidate))
             {
-                intent = ShotIntent.Serve;
+                return;
             }
 
-            // [물리적 요건과 스윙 종류의 강제 일치화]
-            // 점프가 요구되는 상황(RequiresJump == true)이라면, 
-            // 전술적 샷 종류(intent)에 상관없이 무조건 공중용 스매시 히트박스(SwingKind.Smash)를 활성화하여 헛스윙을 차단합니다.
+            long id = ++nextPlanId;
             bool requiresJump = candidate.RequiresJump;
-            if (intent == ShotIntent.Serve || ball.PlayMode == BallPlayMode.ServeToss)
-            {
-                requiresJump = false;
-            }
-
             SwingKind kind = requiresJump ? SwingKind.Smash : SwingKind.Normal;
 
-            plan=new AISwingPlan(observation.PointId,id,observation.ObservationId,candidate.StepIndex,
-                kind,intent,Mathf.Max(0f,candidate.ArrivalTime-age),candidate.Position,requiresJump,
-                candidate.BounceCountBeforeArrival);
+            plan = new AISwingPlan(id, candidate, kind, requiresJump, rally.GlobalPointId);
         }
 
         private ShotIntent DetermineShotIntent(AiTacticalContext ctx)
