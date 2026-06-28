@@ -147,6 +147,19 @@ namespace CatTennis.Rebuild.Cat
             if(plan!=null && !plan.Consumed)
             {
                 plan.RemainingTime-=Time.fixedDeltaTime;
+
+                // [플랜 만료 시간 가드]
+                // 계획된 볼 도달 시간보다 0.15초(7.5틱) 이상 지나갔는데도 타격에 실패했다면, 
+                // 해당 플랜은 완전히 실패한(Whiff/Outdated) 것으로 간주하여 즉시 폐기하고 신규 수비 플랜을 수립하도록 허용합니다.
+                if (plan.RemainingTime < -0.15f)
+                {
+                    plan.Consumed = true;
+                    plan = null;
+                }
+            }
+
+            if(plan!=null && !plan.Consumed)
+            {
                 bool grounded=IsGrounded();
                 
                 // 점프 리드타임 동적 보정: AI의 점프 속도(7m/s)와 중력(3배 scale) 하에서 

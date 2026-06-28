@@ -311,7 +311,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.3673333, y: -1.0747455}
+  m_Offset: {x: -0.19689906, y: -1.2003284}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -322,7 +322,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 3.3019164, y: 3.185243}
+  m_Size: {x: 0.98760486, y: 1.0323958}
   m_EdgeRadius: 0
 --- !u!4 &309010824
 Transform:
@@ -1260,10 +1260,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hitDetector: {fileID: 1065262008}
-  pointLoopBridge: {fileID: 1815160058}
-  shotConfig: {fileID: 11400000, guid: 2d07dfe05d45aeb4b8fa9023889d43fb, type: 2}
-  ballPhysicsConfig: {fileID: 11400000, guid: 60f7ca58ae4ab9849a5d34aa9613ea47, type: 2}
-  courtGeometryConfig: {fileID: 11400000, guid: 727f59459f79fa3419eeb138fc576df5, type: 2}
   shotExecutionController: {fileID: 1815160056}
 --- !u!114 &1065262012
 MonoBehaviour:
@@ -1551,7 +1547,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.3915589, y: -1.187798}
+  m_Offset: {x: -0.31631613, y: -1.2861918}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -1562,7 +1558,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1.6384311, y: 1.6025084}
+  m_Size: {x: 1.0249166, y: 1.1047509}
   m_EdgeRadius: 0
 --- !u!1 &1296272128
 GameObject:
@@ -1728,7 +1724,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.45350814, y: -0.5288008}
+  m_Offset: {x: -0.46806908, y: -0.42202395}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -1739,7 +1735,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1.2756443, y: 1.576454}
+  m_Size: {x: 0.9941416, y: 1.2464162}
   m_EdgeRadius: 0
 --- !u!4 &1446244223
 Transform:
@@ -2114,6 +2110,7 @@ MonoBehaviour:
   shotConfig: {fileID: 11400000, guid: 2d07dfe05d45aeb4b8fa9023889d43fb, type: 2}
   physicsConfig: {fileID: 11400000, guid: 60f7ca58ae4ab9849a5d34aa9613ea47, type: 2}
   courtConfig: {fileID: 11400000, guid: 727f59459f79fa3419eeb138fc576df5, type: 2}
+  rallyAiConfig: {fileID: 0}
 --- !u!114 &1815160057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2684,7 +2681,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: -0.27855456, y: -0.9296701}
+  m_Offset: {x: -0.32708943, y: -0.9296701}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -2695,7 +2692,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 1.0454481, y: 1.17801}
+  m_Size: {x: 1.1425178, y: 1.17801}
   m_EdgeRadius: 0
 --- !u!4 &2042139675
 Transform:

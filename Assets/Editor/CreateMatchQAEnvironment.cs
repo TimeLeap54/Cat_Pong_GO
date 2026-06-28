@@ -9,10 +9,13 @@ using CatTennis.Rebuild.Rules;
 using CatTennis.Rebuild.State;
 using CatTennis.Rebuild.UI;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
+using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.U2D;
 using UnityEngine.UI;
 
 namespace CatTennis.Rebuild.EditorTools
@@ -21,6 +24,8 @@ namespace CatTennis.Rebuild.EditorTools
     {
         private const string SettingsFolder = "Assets/Settings/Match";
         private const string VisualPrefabFolder = "Assets/Art/Prefabs";
+        private const string MainMenuRuntimeUiFolder = "Assets/Art/UI/MainMenuRuntime";
+        private const string MainMenuAtlasPath = "Assets/Art/UI/MainMenuRuntime.spriteatlas";
         private const string MainMenuPath = "Assets/Scenes/Rebuild_MainMenu.unity";
         private const string MatchPath = "Assets/Scenes/Rebuild_Match.unity";
         private const string AiSettingsFolder = "Assets/Settings/AI";
@@ -69,9 +74,10 @@ namespace CatTennis.Rebuild.EditorTools
             EditorUtility.SetDirty(rookieAi);EditorUtility.SetDirty(dojoAi);EditorUtility.SetDirty(masterAi);
             AssetDatabase.SaveAssets();
 
+            PrepareMainMenuUiAssets();
             CreateVisualPrefabsIfMissing();
 
-            CreateMainMenuScene();
+            CreateMainMenuScene(false);
             physics = AssetDatabase.LoadAssetAtPath<BallPhysicsConfig>(
                 $"{SettingsFolder}/BallPhysicsConfig_Match.asset");
             geometry = AssetDatabase.LoadAssetAtPath<CourtGeometryConfig>(
@@ -90,13 +96,299 @@ namespace CatTennis.Rebuild.EditorTools
             Debug.Log("Created production MainMenu and Match QA scenes.");
         }
 
-        private static void CreateMainMenuScene()
+        [MenuItem("Cat Tennis/Rebuild/Rebuild Main Menu UI")]
+        public static void RebuildMainMenuUi()
         {
-            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            PrepareMainMenuUiAssets();
+            CreateMainMenuScene(!Application.isBatchMode);
+            ConfigureBuildSettings();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Rebuilt MainMenu UI scene.");
+        }
+
+        [MenuItem("Cat Tennis/Rebuild/Prepare Main Menu UI Assets")]
+        public static void PrepareMainMenuUiAssets()
+        {
+            EnsureFolder(MainMenuRuntimeUiFolder);
+
+            TrimTransparentUiSprite("Assets/Art/UI/Asset14.png", $"{MainMenuRuntimeUiFolder}/Logo.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Main_Character.png", $"{MainMenuRuntimeUiFolder}/MainCharacter.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Start.png", $"{MainMenuRuntimeUiFolder}/Start.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/HowtoPlay.png", $"{MainMenuRuntimeUiFolder}/HowtoPlay.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Settings.png", $"{MainMenuRuntimeUiFolder}/Settings.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Tournament.png", $"{MainMenuRuntimeUiFolder}/Tournament.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Rally.png", $"{MainMenuRuntimeUiFolder}/Rally.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Asset18 (1).png", $"{MainMenuRuntimeUiFolder}/SelectMode.png", 12);
+            TrimTransparentUiSprite("Assets/Art/UI/Asset19 (1).png", $"{MainMenuRuntimeUiFolder}/Back.png", 12);
+
+            AssetDatabase.Refresh();
+            ConfigureUiTextureImporter("Assets/Art/UI/Main_Background.png", 2048);
+            foreach (string guid in AssetDatabase.FindAssets("t:Texture2D", new[] { MainMenuRuntimeUiFolder }))
+            {
+                ConfigureUiTextureImporter(AssetDatabase.GUIDToAssetPath(guid), 1024);
+            }
+
+            CreateOrUpdateMainMenuAtlas();
+            AssetDatabase.SaveAssets();
+            Debug.Log("Prepared runtime MainMenu UI assets.");
+        }
+
+        private static void CreateMainMenuScene(bool additive)
+        {
+            Scene previousActiveScene = EditorSceneManager.GetActiveScene();
+            Scene scene = EditorSceneManager.NewScene(
+                NewSceneSetup.EmptyScene,
+                additive ? NewSceneMode.Additive : NewSceneMode.Single);
+            EditorSceneManager.SetActiveScene(scene);
             CreateCamera(new Color(0.25f, 0.65f, 0.88f));
-            new GameObject("MainMenuController").AddComponent<MainMenuController>();
             CreateEventSystem();
+
+            MainMenuController controller = new GameObject("MainMenuController").AddComponent<MainMenuController>();
+            Canvas canvas = CreateMainMenuCanvas();
+
+            Sprite background = LoadRequired<Sprite>("Assets/Art/UI/Main_Background.png");
+            Sprite logo = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Logo.png");
+            Sprite character = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/MainCharacter.png");
+            Sprite start = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Start.png");
+            Sprite howToPlay = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/HowtoPlay.png");
+            Sprite settings = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Settings.png");
+            Sprite tournament = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Tournament.png");
+            Sprite rally = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Rally.png");
+            Sprite selectMode = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/SelectMode.png");
+            Sprite back = LoadRequired<Sprite>($"{MainMenuRuntimeUiFolder}/Back.png");
+
+            Image backgroundImage = CreateImage("Background", canvas.transform, background);
+            backgroundImage.preserveAspect = true;
+            RectTransform backgroundRect = backgroundImage.rectTransform;
+            backgroundRect.anchorMin = new Vector2(0.5f, 0.5f);
+            backgroundRect.anchorMax = new Vector2(0.5f, 0.5f);
+            backgroundRect.sizeDelta = new Vector2(1920f, 1080f);
+            AspectRatioFitter backgroundFitter = backgroundImage.gameObject.AddComponent<AspectRatioFitter>();
+            backgroundFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            backgroundFitter.aspectRatio = background.rect.width / background.rect.height;
+
+            GameObject mainPanel = CreatePanel("MainPanel", canvas.transform);
+            CreateImage("Logo", mainPanel.transform, logo, new Vector2(0f, 260f), new Vector2(820f, 476f));
+            CreateImage("Character", mainPanel.transform, character, new Vector2(-560f, -250f), new Vector2(420f, 511f));
+            Button startButton = CreateSpriteButton("StartButton", mainPanel.transform, start, new Vector2(0f, -140f), new Vector2(620f, 300f));
+            CreateSpriteButton("HowToPlayButton", mainPanel.transform, howToPlay, new Vector2(-260f, -405f), new Vector2(390f, 117f));
+            CreateSpriteButton("SettingsButton", mainPanel.transform, settings, new Vector2(260f, -405f), new Vector2(390f, 135f));
+            UnityEventTools.AddPersistentListener(startButton.onClick, controller.ShowModeSelection);
+
+            GameObject modePanel = CreatePanel("ModePanel", canvas.transform);
+            CreateImage("Logo", modePanel.transform, logo, new Vector2(0f, 285f), new Vector2(760f, 441f));
+            CreateImage("SelectModeLabel", modePanel.transform, selectMode, new Vector2(0f, 55f), new Vector2(420f, 124f));
+            Button tournamentButton = CreateSpriteButton("TournamentButton", modePanel.transform, tournament, new Vector2(-260f, -210f), new Vector2(310f, 449f));
+            Button rallyButton = CreateSpriteButton("RallyButton", modePanel.transform, rally, new Vector2(260f, -210f), new Vector2(303f, 449f));
+            Button backButton = CreateSpriteButton("BackButton", modePanel.transform, back, new Vector2(0f, -455f), new Vector2(300f, 97f));
+            UnityEventTools.AddPersistentListener(tournamentButton.onClick, controller.StartTournament);
+            UnityEventTools.AddPersistentListener(rallyButton.onClick, controller.StartRally);
+            UnityEventTools.AddPersistentListener(backButton.onClick, controller.ShowMainMenu);
+            modePanel.SetActive(false);
+
+            SerializedObject controllerSerialized = new SerializedObject(controller);
+            controllerSerialized.FindProperty("mainPanel").objectReferenceValue = mainPanel;
+            controllerSerialized.FindProperty("modePanel").objectReferenceValue = modePanel;
+            controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
+
             EditorSceneManager.SaveScene(scene, MainMenuPath);
+            if (additive)
+            {
+                if (previousActiveScene.IsValid())
+                {
+                    EditorSceneManager.SetActiveScene(previousActiveScene);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+
+        private static void TrimTransparentUiSprite(string sourcePath, string outputPath, int padding)
+        {
+            string fullSourcePath = Path.GetFullPath(sourcePath);
+            Texture2D source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!source.LoadImage(File.ReadAllBytes(fullSourcePath)))
+            {
+                throw new InvalidOperationException($"Could not read UI texture: {sourcePath}");
+            }
+
+            Color32[] pixels = source.GetPixels32();
+            int minX = source.width;
+            int minY = source.height;
+            int maxX = -1;
+            int maxY = -1;
+            for (int y = 0; y < source.height; y++)
+            {
+                for (int x = 0; x < source.width; x++)
+                {
+                    if (pixels[y * source.width + x].a == 0)
+                    {
+                        continue;
+                    }
+
+                    minX = Mathf.Min(minX, x);
+                    minY = Mathf.Min(minY, y);
+                    maxX = Mathf.Max(maxX, x);
+                    maxY = Mathf.Max(maxY, y);
+                }
+            }
+
+            if (maxX < minX || maxY < minY)
+            {
+                UnityEngine.Object.DestroyImmediate(source);
+                throw new InvalidOperationException($"UI texture is fully transparent: {sourcePath}");
+            }
+
+            minX = Mathf.Max(0, minX - padding);
+            minY = Mathf.Max(0, minY - padding);
+            maxX = Mathf.Min(source.width - 1, maxX + padding);
+            maxY = Mathf.Min(source.height - 1, maxY + padding);
+            int width = maxX - minX + 1;
+            int height = maxY - minY + 1;
+
+            Texture2D trimmed = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            trimmed.SetPixels(source.GetPixels(minX, minY, width, height));
+            trimmed.Apply();
+            File.WriteAllBytes(Path.GetFullPath(outputPath), trimmed.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(trimmed);
+            UnityEngine.Object.DestroyImmediate(source);
+        }
+
+        private static void ConfigureUiTextureImporter(string path, int maxSize)
+        {
+            AssetDatabase.ImportAsset(path);
+            TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            if (importer == null)
+            {
+                throw new InvalidOperationException($"Expected a texture importer at {path}.");
+            }
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 100f;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.textureCompression = TextureImporterCompression.Compressed;
+            importer.maxTextureSize = maxSize;
+
+            SetPlatformTextureSettings(importer, "Standalone", maxSize);
+            SetPlatformTextureSettings(importer, "Android", maxSize);
+            SetPlatformTextureSettings(importer, "iPhone", maxSize);
+            importer.SaveAndReimport();
+        }
+
+        private static void SetPlatformTextureSettings(TextureImporter importer, string platform, int maxSize)
+        {
+            TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings(platform);
+            settings.overridden = true;
+            settings.maxTextureSize = maxSize;
+            settings.format = TextureImporterFormat.Automatic;
+            settings.textureCompression = TextureImporterCompression.Compressed;
+            settings.compressionQuality = 50;
+            importer.SetPlatformTextureSettings(settings);
+        }
+
+        private static void CreateOrUpdateMainMenuAtlas()
+        {
+            SpriteAtlas atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(MainMenuAtlasPath);
+            if (atlas == null)
+            {
+                atlas = new SpriteAtlas();
+                AssetDatabase.CreateAsset(atlas, MainMenuAtlasPath);
+            }
+
+            SpriteAtlasPackingSettings packing = atlas.GetPackingSettings();
+            packing.enableRotation = false;
+            packing.enableTightPacking = true;
+            packing.padding = 4;
+            atlas.SetPackingSettings(packing);
+
+            SpriteAtlasTextureSettings texture = atlas.GetTextureSettings();
+            texture.generateMipMaps = false;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.sRGB = true;
+            atlas.SetTextureSettings(texture);
+
+            TextureImporterPlatformSettings platform = atlas.GetPlatformSettings("DefaultTexturePlatform");
+            platform.maxTextureSize = 2048;
+            platform.format = TextureImporterFormat.Automatic;
+            platform.textureCompression = TextureImporterCompression.Compressed;
+            atlas.SetPlatformSettings(platform);
+
+            UnityEngine.Object folder = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(MainMenuRuntimeUiFolder);
+            atlas.Remove(atlas.GetPackables());
+            atlas.Add(new[] { folder });
+            EditorUtility.SetDirty(atlas);
+            SpriteAtlasUtility.PackAtlases(new[] { atlas }, EditorUserBuildSettings.activeBuildTarget);
+        }
+
+        private static Canvas CreateMainMenuCanvas()
+        {
+            GameObject canvasObject = new GameObject("Canvas");
+            Canvas canvas = canvasObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+            canvasObject.AddComponent<GraphicRaycaster>();
+            return canvas;
+        }
+
+        private static GameObject CreatePanel(string name, Transform parent)
+        {
+            GameObject panel = new GameObject(name);
+            panel.transform.SetParent(parent, false);
+            RectTransform rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            return panel;
+        }
+
+        private static Image CreateImage(string name, Transform parent, Sprite sprite)
+        {
+            GameObject imageObject = new GameObject(name);
+            imageObject.transform.SetParent(parent, false);
+            Image image = imageObject.AddComponent<Image>();
+            image.sprite = sprite;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static Image CreateImage(
+            string name,
+            Transform parent,
+            Sprite sprite,
+            Vector2 anchoredPosition,
+            Vector2 size)
+        {
+            Image image = CreateImage(name, parent, sprite);
+            image.preserveAspect = true;
+            RectTransform rect = image.rectTransform;
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+            return image;
+        }
+
+        private static Button CreateSpriteButton(
+            string name,
+            Transform parent,
+            Sprite sprite,
+            Vector2 anchoredPosition,
+            Vector2 size)
+        {
+            Image image = CreateImage(name, parent, sprite, anchoredPosition, size);
+            image.raycastTarget = true;
+            Button button = image.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            return button;
         }
 
         private static void CreateMatchScene(
