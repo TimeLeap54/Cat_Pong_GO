@@ -77,7 +77,8 @@ namespace CatTennis.Rebuild.Cat
             if (currentHitCount != lastRallyHitCount)
             {
                 lastRallyHitCount = currentHitCount;
-                float baseSpeed = aiConfig.MoveSpeed * (1f + Mathf.Min(0.35f, currentHitCount * 0.03f));
+                // AI 속도를 랠리 횟수와 상관없이 aiConfig.MoveSpeed 고정값으로 고정하여 물리적 안정성을 100% 보장합니다.
+                float baseSpeed = aiConfig.MoveSpeed;
                 float maxCourtX = Mathf.Max(aiConfig.CourtMaxX, 8.5f);
                 motor.Configure(baseSpeed, 1000f, 1000f, aiConfig.CourtMinX, maxCourtX);
             }
@@ -300,11 +301,8 @@ namespace CatTennis.Rebuild.Cat
                 0.15f,maxCourtX,aiConfig.JumpHeightThreshold);
             float age=Time.fixedTime-observation.Time;
             
+            // 미래 예측 시뮬레이션용 속도도 고정값을 사용하여 궤도 오판을 원천 차단합니다.
             float baseSpeed = aiConfig.MoveSpeed;
-            if (rally != null)
-            {
-                baseSpeed *= (1f + Mathf.Min(0.35f, rally.RallyHitCount * 0.03f));
-            }
 
             bool isServe = ball.PlayMode == BallPlayMode.ServeToss;
             if(!planner.TrySelect(candidates,motor.Position.x,baseSpeed,age,
