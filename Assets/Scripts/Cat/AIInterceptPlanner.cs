@@ -14,6 +14,7 @@ namespace CatTennis.Rebuild.Cat
 
             // 1. 도달 가능한 안정적인 1바운드 수비 후보(BounceCount == 1)가 존재하는지 선행 탐색
             bool hasReachableBounce = false;
+            BallArrivalCandidate bestBounce = default;
             for (int i = 0; i < candidates.Count; i++)
             {
                 if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
@@ -24,6 +25,7 @@ namespace CatTennis.Rebuild.Cat
                     Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
                 {
                     if (candidates[i].RequiresJump && remaining < jumpLead) continue;
+                    bestBounce = candidates[i];
                     hasReachableBounce = true;
                     break;
                 }
@@ -37,9 +39,9 @@ namespace CatTennis.Rebuild.Cat
                     if (candidates[i].BounceCountBeforeArrival != 0) continue;
                     if (candidates[i].Position.y < 2.0f) continue;
 
-                    // 1바운드 수비가 가능한 충분한 시간적 여유가 있을 때는, 헛점프 방지를 위해 아웃라인 근처(X >= 5.8f) 공중 후보 제외
-                    // 1바운드 지점까지 물리적으로 도달할 수 없는 상황(hasReachableBounce == false)일 때는 긴급하게 공중에서 걷어내는 것 허용
-                    if (hasReachableBounce && candidates[i].Position.x >= 5.8f) continue;
+                    // 1바운드 수비가 가능한 충분한 시간적 여유가 있고, 공의 최종 바운드 지점이 아웃라인 근처(X >= 5.8f)인 경우, 
+                    // 공중 헛스윙(Flail)을 막기 위해 모든 공중(발리/스매시) 후보를 전면 제외하고 백코트 회군 수비를 유도합니다.
+                    if (hasReachableBounce && bestBounce.Position.x >= 5.8f) continue;
 
                     float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
                     if (remaining > swingLead &&
