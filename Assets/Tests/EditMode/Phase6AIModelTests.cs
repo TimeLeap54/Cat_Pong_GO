@@ -39,7 +39,7 @@ namespace CatTennis.Rebuild.Tests
         {
             var planner=new AIInterceptPlanner();
             var candidates=new[]{new BallArrivalCandidate(new UnityEngine.Vector2(8f,1f),.2f,1,0,false)};
-            Assert.That(planner.TrySelect(candidates,1f,3f,0f,.05f,.35f,false,out _),Is.False);
+            Assert.That(planner.TrySelect(candidates,1f,3f,0f,.05f,.35f,false,false,out _),Is.False);
         }
     }
 }
