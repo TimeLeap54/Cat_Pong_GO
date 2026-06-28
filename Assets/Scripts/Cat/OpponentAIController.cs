@@ -270,14 +270,15 @@ namespace CatTennis.Rebuild.Cat
 
         private void UpdatePlan(DelayedBallObservation observation)
         {
+            bool forceBounce = false;
             if (plan != null && !plan.Consumed && plan.PointId == observation.PointId)
             {
-                // 만약 현재 계획이 백코트 회군(BounceCountBeforeArrival == 1) 계획이라면, 
-                // 도중에 마음을 바꾸어 공중 차단(Volley)으로 전환하는 것을 전면 금지합니다.
-                // 이는 달리다가 중간에 갑자기 점프 헛방(Flail)을 치는 현상을 방지합니다.
+                // [1바운드 수비 굳건화 잠금]
+                // 1바운드 수비 도중 발리 수비로 번복하여 갈팡질팡(지터링)하는 오작동은 전면 차단하되,
+                // 실시간 낙하지점의 미세 수정(갱신)은 1바운드 궤적 내에서 지속적으로 허용하여 타격 정확도를 올립니다.
                 if (plan.BounceCountBeforeArrival == 1)
                 {
-                    return;
+                    forceBounce = true;
                 }
 
                 bool airborne = !IsGrounded();
@@ -301,7 +302,7 @@ namespace CatTennis.Rebuild.Cat
 
             bool isServe = ball.PlayMode == BallPlayMode.ServeToss;
             if(!planner.TrySelect(candidates,motor.Position.x,baseSpeed,age,
-                    aiConfig.SwingLeadTime,aiConfig.JumpLeadTime,isServe,out var candidate)) return;
+                    aiConfig.SwingLeadTime,aiConfig.JumpLeadTime,isServe,forceBounce,out var candidate)) return;
             long id=++nextPlanId;
 
             AiTacticalContext ctx = new AiTacticalContext();

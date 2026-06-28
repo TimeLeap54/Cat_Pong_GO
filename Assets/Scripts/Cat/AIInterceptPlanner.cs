@@ -7,7 +7,7 @@ namespace CatTennis.Rebuild.Cat
     {
         public bool TrySelect(IReadOnlyList<BallArrivalCandidate> candidates, float currentX,
             float moveSpeed, float elapsedObservationAge, float swingLead, float jumpLead,
-            bool isServeToss, out BallArrivalCandidate selected)
+            bool isServeToss, bool forceBounceMode, out BallArrivalCandidate selected)
         {
             selected = default;
             if (candidates == null || candidates.Count == 0) return false;
@@ -67,8 +67,8 @@ namespace CatTennis.Rebuild.Cat
                 }
             }
 
-            // 머리 위를 넘어가거나, 솟구치는 로브 볼 전체에 대해 바운드 후 타격을 강제합니다.
-            bool shouldForceBounce = isOverheadPassing || isHighLob;
+            // 머리 위를 넘어가거나, 솟구치는 로브 볼 전체, 또는 이전 1바운드 플랜 잠금 모드(forceBounceMode)일 때 바운드 후 타격을 강제합니다.
+            bool shouldForceBounce = isOverheadPassing || isHighLob || forceBounceMode;
 
             // [0순위] 고궤도 체공 공(스파이크 기회 및 긴급 공중 수비) 선점
             if (!isServeToss && !shouldForceBounce)
