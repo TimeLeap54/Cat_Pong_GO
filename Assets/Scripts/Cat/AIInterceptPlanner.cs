@@ -68,7 +68,10 @@ namespace CatTennis.Rebuild.Cat
             }
 
             // 머리 위를 넘어가거나, 솟구치는 로브 볼 전체, 또는 이전 1바운드 플랜 잠금 모드(forceBounceMode)일 때 바운드 후 타격을 강제합니다.
-            bool shouldForceBounce = isOverheadPassing || isHighLob || forceBounceMode;
+            // 단, 공의 최종 낙하지점이 AI의 현재 위치와 너무 가까운 경우(수평 거리 1.5f 이하)에는 
+            // 굳이 뒤로 복귀하지 않고 제자리 근처에서 공중 커트(발리/스매시)가 가능하므로 1바운드 강제를 해제합니다.
+            bool isCloseLob = hasReachableBounce && Mathf.Abs(bestBounce.Position.x - currentX) <= 1.5f;
+            bool shouldForceBounce = (isOverheadPassing || isHighLob || forceBounceMode) && !isCloseLob;
 
             // [0순위] 고궤도 체공 공(스파이크 기회 및 긴급 공중 수비) 선점
             if (!isServeToss && !shouldForceBounce)
