@@ -124,10 +124,8 @@ namespace CatTennis.Rebuild.Cat
                         : manualHitboxes.NormalHitbox;
                     if (activeTrigger != null && activeTrigger.Box != null)
                     {
-                        // AI는 왼쪽을 바라보므로 localScale.x는 보통 음수(-1)입니다.
-                        float localScaleX = transform.localScale.x;
-                        float targetOffset = activeTrigger.Box.offset.x * (Mathf.Approximately(localScaleX, 0f) ? -1f : Mathf.Sign(localScaleX));
-                        target -= targetOffset;
+                        // AI는 항상 왼쪽(-1방향)을 바라보므로, 수평 offset.x를 더해 공이 히트박스 중심에 오도록 정렬합니다.
+                        target += activeTrigger.Box.offset.x;
                     }
                 }
                 else
