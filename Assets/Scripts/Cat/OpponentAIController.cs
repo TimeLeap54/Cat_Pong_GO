@@ -125,6 +125,7 @@ namespace CatTennis.Rebuild.Cat
 
                     // 타격 성공률을 높이기 위해, AI가 사용하는 히트박스의 수평 오프셋(CenterX)을 반영하여 
                     // 공의 중심이 아닌 히트박스의 중심에 공이 정렬되도록 서는 위치(target)를 미세 조정합니다.
+                    float offsetVal = 0.5f;
                     if (UsesManualHitboxes)
                     {
                         OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
@@ -132,9 +133,7 @@ namespace CatTennis.Rebuild.Cat
                             : manualHitboxes.NormalHitbox;
                         if (activeTrigger != null && activeTrigger.Box != null)
                         {
-                            // AI는 항상 왼쪽(-1방향)을 바라보므로, 월드 기준 공보다 오른쪽(값 증가)에 서야 히트박스가 공에 맞닿습니다.
-                            // 따라서 수동 콜라이더 offset.x의 절댓값을 추가하여 정렬을 정밀하게 제어합니다.
-                            target += Mathf.Abs(activeTrigger.Box.offset.x);
+                            offsetVal = Mathf.Abs(activeTrigger.Box.offset.x);
                         }
                     }
                     else
@@ -142,8 +141,19 @@ namespace CatTennis.Rebuild.Cat
                         HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
                             ? catConfig.CreateSmashHitZone() 
                             : catConfig.CreateNormalHitZone();
-                        // AI는 왼쪽(-1방향)을 바라보므로 CenterX의 부호를 반전하여 오프셋 적용
-                        target += activeZone.CenterX;
+                        offsetVal = activeZone.CenterX;
+                    }
+
+                    // AI는 항상 왼쪽(-1방향)을 바라보므로, 월드 기준 공보다 오른쪽(값 증가)에 서야 히트박스가 공에 맞닿습니다.
+                    target += offsetVal;
+
+                    // [전방 오버슛(지나침) 방지용 강력 가드]
+                    // 네트 앞으로 떨어지는 짧은 공(Short Drop)을 받기 위해 앞으로 돌진할 때, 
+                    // 속도 관성으로 인해 낙하지점보다 지나치게 네트 쪽(왼쪽)으로 미끄러져 들어가 뒤통수로 공을 흘리는 현상을 막습니다.
+                    // 목표 위치(target)가 공의 예측 낙하지점 X보다 네트 방향(왼쪽)으로 침범하는 것을 원천 금지합니다.
+                    if (plan.BounceCountBeforeArrival == 1)
+                    {
+                        target = Mathf.Max(target, plan.InterceptPosition.x + (offsetVal * 0.8f));
                     }
                 }
             }
