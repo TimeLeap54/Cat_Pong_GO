@@ -109,6 +109,15 @@ namespace CatTennis.Rebuild.Cat
             float moveX = 0f; bool jump = false; bool swing = false; bool smash = false;
             float target = aiConfig.HomeX;
 
+            // [수비 중 플랜 부재 시 필사적 폴백 추적]
+            // 플래너가 도달 불가능하다고 판정했거나 이전 플랜이 만료(Consumed)되었더라도,
+            // 여전히 수비 상황(receiving == true)이라면 홈 포지션으로 후퇴(으아아악 백스텝)하지 않고
+            // 공의 현재 실시간 X좌표를 향해 끝까지 필사적으로 대시하여 받아내려 시도하게 만듭니다.
+            if (receiving && (plan == null || plan.Consumed))
+            {
+                target = ball.CurrentSnapshot.PositionX;
+            }
+
             if (receiving && plan != null && !plan.Consumed)
             {
                 // [원바운드 수비 시 후방 선제 회군 및 대기]
