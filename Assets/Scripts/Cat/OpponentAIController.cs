@@ -111,30 +111,39 @@ namespace CatTennis.Rebuild.Cat
 
             if (receiving && plan != null && !plan.Consumed)
             {
-                // [원바운드 타겟 직접 추적]
-                // 공이 네트를 돌파하기 전에도 즉각 예측 낙하지점을 향해 추적을 시작하여 로브 수비 안정성 확보
-                target = plan.InterceptPosition.x;
-
-                // 타격 성공률을 높이기 위해, AI가 사용하는 히트박스의 수평 오프셋(CenterX)을 반영하여 
-                // 공의 중심이 아닌 히트박스의 중심에 공이 정렬되도록 서는 위치(target)를 미세 조정합니다.
-                if (UsesManualHitboxes)
+                // [딥 샷 원바운드 수비 시 아웃라인 선제 회군 및 대기]
+                // 1바운드 수비 계획이고 최종 낙하지점이 깊은 아웃라인 구석(X >= 5.8f)인 경우,
+                // 타격 여유 시간(RemainingTime > 0.4초)이 충분할 때 미리 아웃라인 근방(7.3f~7.7f)으로 전속력으로 복귀하여 대기하게 만듭니다.
+                if (plan.BounceCountBeforeArrival == 1 && plan.InterceptPosition.x >= 5.8f && plan.RemainingTime > 0.4f)
                 {
-                    OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
-                        ? manualHitboxes.SmashHitbox
-                        : manualHitboxes.NormalHitbox;
-                    if (activeTrigger != null && activeTrigger.Box != null)
-                    {
-                        // AI는 항상 왼쪽(-1방향)을 바라보므로, 수평 offset.x를 더해 공이 히트박스 중심에 오도록 정렬합니다.
-                        target += activeTrigger.Box.offset.x;
-                    }
+                    target = Mathf.Clamp(aiConfig.CourtMaxX - 0.2f, 7.3f, 7.7f);
                 }
                 else
                 {
-                    HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
-                        ? catConfig.CreateSmashHitZone() 
-                        : catConfig.CreateNormalHitZone();
-                    // AI는 왼쪽(-1방향)을 바라보므로 CenterX의 부호를 반전하여 오프셋 적용
-                    target += activeZone.CenterX;
+                    target = plan.InterceptPosition.x;
+
+                    // 타격 성공률을 높이기 위해, AI가 사용하는 히트박스의 수평 오프셋(CenterX)을 반영하여 
+                    // 공의 중심이 아닌 히트박스의 중심에 공이 정렬되도록 서는 위치(target)를 미세 조정합니다.
+                    if (UsesManualHitboxes)
+                    {
+                        OpponentManualHitboxTrigger activeTrigger = (plan.SwingKind == SwingKind.Smash)
+                            ? manualHitboxes.SmashHitbox
+                            : manualHitboxes.NormalHitbox;
+                        if (activeTrigger != null && activeTrigger.Box != null)
+                        {
+                            // AI는 항상 왼쪽(-1방향)을 바라보므로, 월드 기준 공보다 오른쪽(값 증가)에 서야 히트박스가 공에 맞닿습니다.
+                            // 따라서 수동 콜라이더 offset.x의 절댓값을 추가하여 정렬을 정밀하게 제어합니다.
+                            target += Mathf.Abs(activeTrigger.Box.offset.x);
+                        }
+                    }
+                    else
+                    {
+                        HitZoneDefinition activeZone = plan.SwingKind == SwingKind.Smash 
+                            ? catConfig.CreateSmashHitZone() 
+                            : catConfig.CreateNormalHitZone();
+                        // AI는 왼쪽(-1방향)을 바라보므로 CenterX의 부호를 반전하여 오프셋 적용
+                        target += activeZone.CenterX;
+                    }
                 }
             }
 
