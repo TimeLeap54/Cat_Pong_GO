@@ -155,7 +155,9 @@ namespace CatTennis.Rebuild.Cat
                     bool isDeepLob = false;
                     for (int i = 0; i < cachedCandidates.Count; i++)
                     {
-                        if (cachedCandidates[i].Position.y >= 2.5f || cachedCandidates[i].Position.x >= 5.8f)
+                        // 공이 AI 코트(우측 진영, X >= 0f)를 지나가는 궤적 중에서만 롭 여부를 판정하여 유저 진역의 드롭 샷 오판을 차단합니다.
+                        if (cachedCandidates[i].Position.x >= 0f && 
+                            (cachedCandidates[i].Position.y >= 2.5f || cachedCandidates[i].Position.x >= 5.8f))
                         {
                             isDeepLob = true;
                             break;
