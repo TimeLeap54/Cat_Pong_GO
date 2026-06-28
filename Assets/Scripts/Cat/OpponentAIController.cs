@@ -252,6 +252,14 @@ namespace CatTennis.Rebuild.Cat
         {
             if (plan != null && !plan.Consumed && plan.PointId == observation.PointId)
             {
+                // 만약 현재 계획이 백코트 회군(BounceCountBeforeArrival == 1) 계획이라면, 
+                // 도중에 마음을 바꾸어 공중 차단(Volley)으로 전환하는 것을 전면 금지합니다.
+                // 이는 달리다가 중간에 갑자기 점프 헛방(Flail)을 치는 현상을 방지합니다.
+                if (plan.BounceCountBeforeArrival == 1)
+                {
+                    return;
+                }
+
                 bool airborne = !IsGrounded();
                 bool swingActive = CurrentAction.SwingState != SwingState.Ready;
                 if (airborne || swingActive)
@@ -305,7 +313,8 @@ namespace CatTennis.Rebuild.Cat
                 requiresJump = false;
             }
             plan=new AISwingPlan(observation.PointId,id,observation.ObservationId,candidate.StepIndex,
-                kind,intent,Mathf.Max(0f,candidate.ArrivalTime-age),candidate.Position,requiresJump);
+                kind,intent,Mathf.Max(0f,candidate.ArrivalTime-age),candidate.Position,requiresJump,
+                candidate.BounceCountBeforeArrival);
         }
 
         private ShotIntent DetermineShotIntent(AiTacticalContext ctx)
