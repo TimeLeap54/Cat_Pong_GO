@@ -31,8 +31,27 @@ namespace CatTennis.Rebuild.Cat
                 }
             }
 
-            // [0순위] 고궤도 체공 공(스파이크 기회 및 긴급 공중 수비) 선점
+            // [오버헤드 패싱 검출]
+            // 바운드 전인데 AI 위치 근처 혹은 뒤쪽(X >= currentX - 0.5f)에서 높이가 2.2f 이상인 궤적이 존재하면
+            // 이는 AI가 제자리 점프해서 닿을 수 없어 등 뒤로 넘어가는 공(로브/패싱샷)입니다.
+            // 이 경우 공중 차단(Volley/Smash)을 강제로 금지하여 허공 허우적거림을 원천 방지하고 1바운드 수비를 강제합니다.
+            bool isOverheadPassing = false;
             if (!isServeToss)
+            {
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    if (candidates[i].BounceCountBeforeArrival == 0 &&
+                        candidates[i].Position.x >= currentX - 0.5f &&
+                        candidates[i].Position.y >= 2.2f)
+                    {
+                        isOverheadPassing = true;
+                        break;
+                    }
+                }
+            }
+
+            // [0순위] 고궤도 체공 공(스파이크 기회 및 긴급 공중 수비) 선점
+            if (!isServeToss && !isOverheadPassing)
             {
                 for (int i = 0; i < candidates.Count; i++)
                 {
@@ -73,7 +92,7 @@ namespace CatTennis.Rebuild.Cat
             // [2순위] 1바운드 수비가 물리적으로 늦을 때, 공중에 떠 있는 볼을 긴급하게 커트하는 일반 발리(바운스 0회) 후보
             for (int i = 0; i < candidates.Count; i++)
             {
-                if (isServeToss) continue;
+                if (isServeToss || isOverheadPassing) continue;
                 if (candidates[i].BounceCountBeforeArrival != 0) continue;
 
                 float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
@@ -104,7 +123,7 @@ namespace CatTennis.Rebuild.Cat
             // [4순위] 점프 리드타임 제약 해제, 도달 가능한 가장 빠른 발리(바운스 0회) 후보
             for (int i = 0; i < candidates.Count; i++)
             {
-                if (isServeToss) continue;
+                if (isServeToss || isOverheadPassing) continue;
                 if (candidates[i].BounceCountBeforeArrival != 0) continue;
 
                 float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
@@ -122,7 +141,8 @@ namespace CatTennis.Rebuild.Cat
             for (int i = 0; i < candidates.Count; i++)
             {
                 if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                if (candidates[i].BounceCountBeforeArrival != 1 && candidates[i].BounceCountBeforeArrival != 0) continue;
+                if (isOverheadPassing && candidates[i].BounceCountBeforeArrival != 1) continue;
+                if (!isOverheadPassing && candidates[i].BounceCountBeforeArrival != 1 && candidates[i].BounceCountBeforeArrival != 0) continue;
 
                 float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
                 if (remaining > swingLead && candidates[i].ArrivalTime > maxArrivalTime)

@@ -111,12 +111,13 @@ namespace CatTennis.Rebuild.Cat
 
             if (receiving && plan != null && !plan.Consumed)
             {
-                // [딥 샷 원바운드 수비 시 아웃라인 선제 회군 및 대기]
-                // 1바운드 수비 계획이고 최종 낙하지점이 깊은 아웃라인 구석(X >= 5.8f)인 경우,
-                // 타격 여유 시간(RemainingTime > 0.4초)이 충분할 때 미리 아웃라인 근방(7.3f~7.7f)으로 전속력으로 복귀하여 대기하게 만듭니다.
-                if (plan.BounceCountBeforeArrival == 1 && plan.InterceptPosition.x >= 5.8f && plan.RemainingTime > 0.4f)
+                // [원바운드 수비 시 후방 선제 회군 및 대기]
+                // 1바운드 수비 계획이고, 공이 AI의 머리를 넘어 등 뒤로 떨어질 예정일 때(최종 낙하지점이 AI의 현재 위치 부근이거나 그 뒤일 때),
+                // 타격 여유 시간(RemainingTime > 0.4초)이 넉넉하다면 미리 낙하지점보다 약 0.7m 뒤로 물러나 대기하게 만듭니다.
+                // 이로 인해 어중간하게 스쳐 지나가듯 떨어지는 하프 로브 샷도 헛스윙 없이 정면에서 안전하게 받아낼 수 있습니다.
+                if (plan.BounceCountBeforeArrival == 1 && plan.RemainingTime > 0.4f && plan.InterceptPosition.x >= motor.Position.x - 0.2f)
                 {
-                    target = Mathf.Clamp(aiConfig.CourtMaxX - 0.2f, 7.3f, 7.7f);
+                    target = Mathf.Clamp(plan.InterceptPosition.x + 0.7f, aiConfig.HomeX, aiConfig.CourtMaxX - 0.2f);
                 }
                 else
                 {
