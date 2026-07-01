@@ -22,12 +22,19 @@ namespace CatTennis.Rebuild.Cat
             minX = courtMinX; maxX = courtMaxX;
         }
 
-        public void Apply(float moveX, bool jump, float jumpSpeed, float dt)
+        public void Apply(float moveX, bool jump, float jumpSpeed, float dt, bool immediateHorizontal = false)
         {
             Vector2 velocity = Body.velocity;
             float target = Mathf.Clamp(moveX, -1f, 1f) * speed;
-            float rate = Mathf.Abs(target) > 0.001f ? acceleration : deceleration;
-            velocity.x = Mathf.MoveTowards(velocity.x, target, rate * dt);
+            if (immediateHorizontal)
+            {
+                velocity.x = target;
+            }
+            else
+            {
+                float rate = Mathf.Abs(target) > 0.001f ? acceleration : deceleration;
+                velocity.x = Mathf.MoveTowards(velocity.x, target, rate * dt);
+            }
             if (jump) velocity.y = jumpSpeed;
             Body.velocity = velocity;
             Vector2 position = Body.position;

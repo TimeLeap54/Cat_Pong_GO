@@ -12,6 +12,7 @@ namespace CatTennis.Rebuild.Debugging
         [SerializeField] private PointLoopEventBridge bridge;
         [SerializeField] private PlayerCatController playerController;
         [SerializeField] private MatchBootstrapper bootstrapper;
+        [SerializeField] private bool visible;
 
         public void Configure(
             MatchFlowManager match,
@@ -35,6 +36,11 @@ namespace CatTennis.Rebuild.Debugging
 
         private void OnGUI()
         {
+            if (!visible)
+            {
+                return;
+            }
+
             if (matchFlow == null || rallyFlow == null || bridge == null)
             {
                 return;

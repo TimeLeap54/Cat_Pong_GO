@@ -44,42 +44,14 @@ SpriteAtlas:
       enableAlphaDilation: 0
     secondaryTextureSettings: {}
     variantMultiplier: 1
-    packables:
-    - {fileID: 102900000, guid: 34afc4316e6a98b4a9d23bc6ccb803f8, type: 3}
-    bindAsDefault: 1
+    packables: []
+    bindAsDefault: 0
     isAtlasV2: 0
     cachedData: {fileID: 0}
-    packedSpriteRenderDataKeys:
-    - a987fb04257b5684cb61959705781a63: 21300000
-    - 59c7bb98a759b954a88a4acc9164512e: 21300000
-    - f8ebb689ea2c8b448ba7fcb3c1843a68: 21300000
-    - a32a272af62ad8f4086e0d6f28db9b7c: 21300000
-    - ea8f05bb67622234399b340009895f54: 21300000
-    - 7bfe8febd9eaede468855fa24e472f00: 21300000
-    - 39d8c68d10486304cbd6c252c4984e88: 21300000
-    - fee5536ea8dabd548a4d0046db88fea0: 21300000
-    - d3f2c20f3f9e49b46b511d8ba0d7825c: 21300000
+    packedSpriteRenderDataKeys: []
   m_MasterAtlas: {fileID: 0}
-  m_PackedSprites:
-  - {fileID: 21300000, guid: a987fb04257b5684cb61959705781a63, type: 3}
-  - {fileID: 21300000, guid: 59c7bb98a759b954a88a4acc9164512e, type: 3}
-  - {fileID: 21300000, guid: f8ebb689ea2c8b448ba7fcb3c1843a68, type: 3}
-  - {fileID: 21300000, guid: a32a272af62ad8f4086e0d6f28db9b7c, type: 3}
-  - {fileID: 21300000, guid: ea8f05bb67622234399b340009895f54, type: 3}
-  - {fileID: 21300000, guid: 7bfe8febd9eaede468855fa24e472f00, type: 3}
-  - {fileID: 21300000, guid: 39d8c68d10486304cbd6c252c4984e88, type: 3}
-  - {fileID: 21300000, guid: fee5536ea8dabd548a4d0046db88fea0, type: 3}
-  - {fileID: 21300000, guid: d3f2c20f3f9e49b46b511d8ba0d7825c, type: 3}
-  m_PackedSpriteNamesToIndex:
-  - Start
-  - MainCharacter
-  - Logo
-  - Rally
-  - Tournament
-  - HowtoPlay
-  - Back
-  - SelectMode
-  - Settings
+  m_PackedSprites: []
+  m_PackedSpriteNamesToIndex: []
   m_RenderDataMap: {}
   m_Tag: MainMenuRuntime
   m_IsVariant: 0

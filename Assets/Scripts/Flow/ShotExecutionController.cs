@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CatTennis.Rebuild.Audio;
 using CatTennis.Rebuild.Cat;
 using CatTennis.Rebuild.Config;
 using CatTennis.Rebuild.Shot;
@@ -62,6 +63,8 @@ namespace CatTennis.Rebuild.Flow
                 {
                     pointBridge.Ball.SetLastShotIntent(contact.Intent, isKillSmash);
                 }
+
+                AudioEventRouter.NotifyShotExecuted(contact.Intent);
 
                 if (contact.Intent == ShotIntent.Smash)
                 {

@@ -604,6 +604,7 @@ namespace CatTennis.Rebuild.EditorTools
             camera.orthographic = true;
             camera.orthographicSize = 5.5f;
             camera.backgroundColor = background;
+            cameraObject.AddComponent<AudioListener>();
             cameraObject.transform.position = new Vector3(0f, 3f, -10f);
         }
 

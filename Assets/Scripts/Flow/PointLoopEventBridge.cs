@@ -6,6 +6,7 @@ using CatTennis.Rebuild.Cat;
 using CatTennis.Rebuild.Config;
 using CatTennis.Rebuild.Rules;
 using CatTennis.Rebuild.State;
+using CatTennis.Rebuild.UI;
 using UnityEngine;
 
 namespace CatTennis.Rebuild.Flow
@@ -248,6 +249,20 @@ namespace CatTennis.Rebuild.Flow
             if (lifecycle != null && !lifecycle.TryBeginReset())
             {
                 return;
+            }
+
+            if (pointLoopConfig != null &&
+                pointLoopConfig.IsRallyMode &&
+                result.Winner == CourtSide.Player)
+            {
+                opponentController?.ReportRallyPointEnd(result);
+            }
+
+            if (pointLoopConfig != null &&
+                pointLoopConfig.IsRallyMode &&
+                result.Winner == CourtSide.Opponent)
+            {
+                RallyGameOverPresenter.NotifyRallyPointEnded(rallyFlowManager.RallyHitCount);
             }
 
             if (!matchFlowManager.TryApplyPoint(result))

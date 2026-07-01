@@ -154,6 +154,9 @@ namespace CatTennis.Rebuild.Cat
             currentOpponentPosition = position;
             currentFacingDirection = facing;
             currentPlan = plan;
+            bool isCounteringSmash = (ball != null &&
+                                      ball.PlayMode == BallPlayMode.Rally &&
+                                      ball.LastShotIntent == ShotIntent.Smash);
 
             if (UsesManualHitboxes)
             {
@@ -179,7 +182,24 @@ namespace CatTennis.Rebuild.Cat
 
                 if (!bounds.Contains(new Vector3(ball.CurrentSnapshot.PositionX, ball.CurrentSnapshot.PositionY, bounds.center.z)))
                 {
-                    return false;
+                    float assistRatio = CalculateHitHeightRatio(ball.CurrentSnapshot, action.SwingKind);
+                    if (!TryCreateRallyServeReceiveAssistContact(
+                            pointId,
+                            action,
+                            plan,
+                            position,
+                            facing,
+                            assistRatio,
+                            isCounteringSmash,
+                            out HitContact assistContact) ||
+                        !executor.TryExecute(assistContact))
+                    {
+                        return false;
+                    }
+
+                    consumedSwingId = action.SwingId;
+                    plan.Consumed = true;
+                    return true;
                 }
             }
 
@@ -207,10 +227,6 @@ namespace CatTennis.Rebuild.Cat
             );
 
             float ratio = CalculateHitHeightRatio(ball.CurrentSnapshot, action.SwingKind);
-            bool isCounteringSmash = (ball != null && 
-                                      ball.PlayMode == BallPlayMode.Rally && 
-                                      ball.LastShotIntent == ShotIntent.Smash);
-
             HitContact contact;
             if (UsesManualHitboxes)
             {
@@ -235,13 +251,75 @@ namespace CatTennis.Rebuild.Cat
                     ball.CurrentSnapshot, ball.PlayMode, expandedNormal,
                     expandedSmash, out contact, ratio, isCounteringSmash))
                 {
-                    return false;
+                    if (!TryCreateRallyServeReceiveAssistContact(
+                            pointId,
+                            action,
+                            plan,
+                            position,
+                            facing,
+                            ratio,
+                            isCounteringSmash,
+                            out contact))
+                    {
+                        return false;
+                    }
                 }
             }
 
             if(!executor.TryExecute(contact)) return false;
             consumedSwingId=action.SwingId;
             plan.Consumed = true; // 플랜 완료 처리 (스킬 연쇄 및 다음 상태 갱신 복구)
+            return true;
+        }
+
+        private bool TryCreateRallyServeReceiveAssistContact(
+            long pointId,
+            PlayerActionFrame action,
+            AISwingPlan plan,
+            Vector2 position,
+            int facing,
+            float ratio,
+            bool isCounteringSmash,
+            out HitContact contact)
+        {
+            contact = default;
+            if (ball == null ||
+                ball.PlayMode != BallPlayMode.Rally ||
+                plan == null ||
+                plan.Consumed ||
+                !action.IsHitActive ||
+                ball.CurrentSnapshot.PositionX < 0f)
+            {
+                return false;
+            }
+
+            float horizontalGap = Mathf.Abs(ball.CurrentSnapshot.PositionX - position.x);
+            float verticalGap = Mathf.Abs(ball.CurrentSnapshot.PositionY - position.y);
+            float horizontalLimit = ball.LastShotWasKillSmash ? 4.2f : 3.2f;
+            float verticalLimit = ball.LastShotWasKillSmash ? 3.6f : 3.0f;
+            bool closeToActor = horizontalGap <= horizontalLimit && verticalGap <= verticalLimit;
+            bool closeToPlan =
+                Mathf.Abs(ball.CurrentSnapshot.PositionX - plan.InterceptPosition.x) <= 1.45f &&
+                Mathf.Abs(ball.CurrentSnapshot.PositionY - plan.InterceptPosition.y) <= 1.25f;
+            if (!closeToActor && !closeToPlan)
+            {
+                return false;
+            }
+
+            contact = new HitContact(
+                pointId,
+                action.SwingId,
+                ball.CurrentSnapshot.StepIndex,
+                HitterType.Opponent,
+                plan.Intent,
+                position,
+                ball.CurrentSnapshot,
+                facing,
+                action.InputTick,
+                false,
+                isCounteringSmash,
+                ratio,
+                ball.LastShotWasKillSmash);
             return true;
         }
 

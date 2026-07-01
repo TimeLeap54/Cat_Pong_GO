@@ -7,6 +7,8 @@ namespace CatTennis.Rebuild.UI
     {
         [SerializeField] private GameObject mainPanel;
         [SerializeField] private GameObject modePanel;
+        [SerializeField] private GameObject howToPlayPanel;
+        [SerializeField] private GameObject settingsPanel;
 
         private void Awake()
         {
@@ -24,6 +26,16 @@ namespace CatTennis.Rebuild.UI
             {
                 modePanel.SetActive(true);
             }
+
+            if (howToPlayPanel != null)
+            {
+                howToPlayPanel.SetActive(false);
+            }
+
+            if (settingsPanel != null)
+            {
+                settingsPanel.SetActive(false);
+            }
         }
 
         public void ShowMainMenu()
@@ -36,6 +48,62 @@ namespace CatTennis.Rebuild.UI
             if (modePanel != null)
             {
                 modePanel.SetActive(false);
+            }
+
+            if (howToPlayPanel != null)
+            {
+                howToPlayPanel.SetActive(false);
+            }
+
+            if (settingsPanel != null)
+            {
+                settingsPanel.SetActive(false);
+            }
+        }
+
+        public void ShowHowToPlay()
+        {
+            if (mainPanel != null)
+            {
+                mainPanel.SetActive(false);
+            }
+
+            if (modePanel != null)
+            {
+                modePanel.SetActive(false);
+            }
+
+            if (howToPlayPanel != null)
+            {
+                howToPlayPanel.SetActive(true);
+            }
+
+            if (settingsPanel != null)
+            {
+                settingsPanel.SetActive(false);
+            }
+        }
+
+        public void ShowSettings()
+        {
+            if (mainPanel != null)
+            {
+                mainPanel.SetActive(false);
+            }
+
+            if (modePanel != null)
+            {
+                modePanel.SetActive(false);
+            }
+
+            if (howToPlayPanel != null)
+            {
+                howToPlayPanel.SetActive(false);
+            }
+
+            if (settingsPanel != null)
+            {
+                settingsPanel.SetActive(true);
             }
         }
 

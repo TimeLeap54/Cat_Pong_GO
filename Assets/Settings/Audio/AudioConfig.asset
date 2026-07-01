@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd7fa273a78345b4ea38d6d691b7e6fe, type: 3}
+  m_Name: AudioConfig
+  m_EditorClassIdentifier: 
+  uiClickClip: {fileID: 8300000, guid: 40785ca05afa69f4ca554bd3334bebcd, type: 3}
+  hitClip: {fileID: 8300000, guid: e354ed0bc32bbb5408265d9a1ae7a917, type: 3}
+  smashClip: {fileID: 8300000, guid: 68f53d14092d1404bb7bce0140b45564, type: 3}
+  uiClickVolume: 0.75
+  hitVolume: 0.85
+  smashVolume: 0.95

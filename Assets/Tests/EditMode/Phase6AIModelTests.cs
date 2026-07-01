@@ -41,5 +41,35 @@ namespace CatTennis.Rebuild.Tests
             var candidates=new[]{new BallArrivalCandidate(new UnityEngine.Vector2(8f,1f),.2f,1,0,false)};
             Assert.That(planner.TrySelect(candidates,1f,3f,0f,.05f,.35f,false,false,out _),Is.False);
         }
+
+        [Test]
+        public void PlannerPrefersOneBounceDeepLobDefenseOverEarlyVolley()
+        {
+            var planner=new AIInterceptPlanner();
+            var candidates=new[]
+            {
+                new BallArrivalCandidate(new UnityEngine.Vector2(5.2f,2.6f),.35f,1,0,true),
+                new BallArrivalCandidate(new UnityEngine.Vector2(6.3f,1.1f),1.05f,2,1,false)
+            };
+
+            Assert.That(planner.TrySelect(candidates,5f,4f,0f,.05f,.35f,false,
+                AiDefenseStance.DeepLobDefense,false,out var selected),Is.True);
+            Assert.That(selected.BounceCountBeforeArrival,Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PlannerPrefersOneBounceServeReceiveOverEarlyVolley()
+        {
+            var planner=new AIInterceptPlanner();
+            var candidates=new[]
+            {
+                new BallArrivalCandidate(new UnityEngine.Vector2(7.7f,2.0f),.45f,1,0,false),
+                new BallArrivalCandidate(new UnityEngine.Vector2(6.9f,1.0f),.95f,2,1,false)
+            };
+
+            Assert.That(planner.TrySelect(candidates,7.5f,4f,0f,.05f,.35f,false,
+                AiDefenseStance.ServeReceive,false,out var selected),Is.True);
+            Assert.That(selected.BounceCountBeforeArrival,Is.EqualTo(1));
+        }
     }
 }

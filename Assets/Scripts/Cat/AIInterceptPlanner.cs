@@ -5,201 +5,288 @@ namespace CatTennis.Rebuild.Cat
 {
     public sealed class AIInterceptPlanner
     {
-        public bool TrySelect(IReadOnlyList<BallArrivalCandidate> candidates, float currentX,
-            float moveSpeed, float elapsedObservationAge, float swingLead, float jumpLead,
-            bool isServeToss, bool forceBounceMode, out BallArrivalCandidate selected)
+        public bool TrySelect(
+            IReadOnlyList<BallArrivalCandidate> candidates,
+            float currentX,
+            float moveSpeed,
+            float elapsedObservationAge,
+            float swingLead,
+            float jumpLead,
+            bool isServeToss,
+            bool forceBounceMode,
+            out BallArrivalCandidate selected)
+        {
+            return TrySelect(
+                candidates,
+                currentX,
+                moveSpeed,
+                elapsedObservationAge,
+                swingLead,
+                jumpLead,
+                isServeToss,
+                AiDefenseStance.BounceDefense,
+                forceBounceMode,
+                out selected);
+        }
+
+        public bool TrySelect(
+            IReadOnlyList<BallArrivalCandidate> candidates,
+            float currentX,
+            float moveSpeed,
+            float elapsedObservationAge,
+            float swingLead,
+            float jumpLead,
+            bool isServeToss,
+            AiDefenseStance stance,
+            bool forceBounceMode,
+            out BallArrivalCandidate selected)
+        {
+            return TrySelect(
+                candidates,
+                currentX,
+                moveSpeed,
+                elapsedObservationAge,
+                swingLead,
+                jumpLead,
+                isServeToss,
+                stance,
+                forceBounceMode,
+                float.PositiveInfinity,
+                out selected);
+        }
+
+        public bool TrySelect(
+            IReadOnlyList<BallArrivalCandidate> candidates,
+            float currentX,
+            float moveSpeed,
+            float elapsedObservationAge,
+            float swingLead,
+            float jumpLead,
+            bool isServeToss,
+            AiDefenseStance stance,
+            bool forceBounceMode,
+            float courtMaxX,
+            out BallArrivalCandidate selected)
         {
             selected = default;
-            if (candidates == null || candidates.Count == 0) return false;
-
-            // 1. 도달 가능한 안정적인 1바운드 수비 후보(BounceCount == 1)가 존재하는지 선행 탐색
-            bool hasReachableBounce = false;
-            BallArrivalCandidate bestBounce = default;
-            for (int i = 0; i < candidates.Count; i++)
+            if (candidates == null || candidates.Count == 0)
             {
-                if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                if (candidates[i].BounceCountBeforeArrival != 1) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead &&
-                    Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                {
-                    if (candidates[i].RequiresJump && remaining < jumpLead) continue;
-                    bestBounce = candidates[i];
-                    hasReachableBounce = true;
-                    break;
-                }
+                return false;
             }
 
-            // [오버헤드 패싱 검출]
-            // 바운드 전인데 AI 위치 근처 혹은 뒤쪽(X >= currentX - 0.5f)에서 높이가 2.2f 이상인 궤적이 존재하면
-            // 이는 AI가 제자리 점프해서 닿을 수 없어 등 뒤로 넘어가는 공(로브/패싱샷)입니다.
-            // 이 경우 공중 차단(Volley/Smash)을 강제로 금지하여 허공 허우적거림을 원천 방지하고 1바운드 수비를 강제합니다.
-            bool isOverheadPassing = false;
-            if (!isServeToss)
+            bool preferBounce = ShouldPreferBounce(stance, forceBounceMode, isServeToss);
+            if (TrySelectBest(candidates, currentX, moveSpeed, elapsedObservationAge, swingLead, jumpLead,
+                    isServeToss, stance, preferBounce, true, courtMaxX, out selected))
             {
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    if (candidates[i].BounceCountBeforeArrival == 0 &&
-                        candidates[i].Position.x >= currentX - 0.5f &&
-                        candidates[i].Position.y >= 2.2f)
-                    {
-                        isOverheadPassing = true;
-                        break;
-                    }
-                }
-            }
-
-            // [로브/고궤도 궤적 검출]
-            // 공이 최고 높이 3.0f 이상으로 솟구치는 높은 포물선(로브) 궤적인 경우,
-            // 무리한 공중 차단(Volley/Smash) 시도로 인한 헛스윙 및 역동작 실점을 막기 위해
-            // 공중 수비 플랜을 원천 금지하고, 1바운드 수비를 강제합니다.
-            bool isHighLob = false;
-            if (!isServeToss)
-            {
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    if (candidates[i].BounceCountBeforeArrival == 0 && candidates[i].Position.y >= 3.0f)
-                    {
-                        isHighLob = true;
-                        break;
-                    }
-                }
-            }
-
-            // 머리 위를 넘어가거나, 솟구치는 로브 볼 전체, 또는 이전 1바운드 플랜 잠금 모드(forceBounceMode)일 때 바운드 후 타격을 강제합니다.
-            // 단, 공의 최종 낙하지점이 AI의 현재 위치와 너무 가까운 경우(수평 거리 1.5f 이하)에는 
-            // 굳이 뒤로 복귀하지 않고 제자리 근처에서 공중 커트(발리/스매시)가 가능하므로 1바운드 강제를 해제합니다.
-            bool isCloseLob = hasReachableBounce && Mathf.Abs(bestBounce.Position.x - currentX) <= 1.5f;
-            bool shouldForceBounce = (isOverheadPassing || isHighLob || forceBounceMode) && !isCloseLob;
-
-            // [0순위] 고궤도 체공 공(스파이크 기회 및 긴급 공중 수비) 선점
-            if (!isServeToss && !shouldForceBounce)
-            {
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    if (candidates[i].BounceCountBeforeArrival != 0) continue;
-                    if (candidates[i].Position.y < 2.0f) continue;
-
-                    // 1바운드 수비가 가능한 충분한 시간적 여유가 있고, 공의 최종 바운드 지점이 아웃라인 근처(X >= 5.8f)인 경우, 
-                    // 공중 헛스윙(Flail)을 막기 위해 모든 공중(발리/스매시) 후보를 전면 제외하고 백코트 회군 수비를 유도합니다.
-                    if (hasReachableBounce && bestBounce.Position.x >= 5.8f) continue;
-
-                    float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                    if (remaining > swingLead &&
-                        Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                    {
-                        if (candidates[i].RequiresJump && remaining < jumpLead) continue;
-                        selected = candidates[i];
-                        return true;
-                    }
-                }
-            }
-
-            // [1순위] 도달 가능하고 점프 리드타임이 확보된 안정적인 1바운드 후보
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                if (candidates[i].BounceCountBeforeArrival != 1) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead &&
-                    Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                {
-                    if (candidates[i].RequiresJump && remaining < jumpLead) continue;
-                    selected = candidates[i];
-                    return true;
-                }
-            }
-
-            // [2순위] 1바운드 수비가 물리적으로 늦을 때, 공중에 떠 있는 볼을 긴급하게 커트하는 일반 발리(바운스 0회) 후보
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (isServeToss || shouldForceBounce) continue;
-                if (candidates[i].BounceCountBeforeArrival != 0) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead &&
-                    Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                {
-                    if (candidates[i].RequiresJump && remaining < jumpLead) continue;
-                    selected = candidates[i];
-                    return true;
-                }
-            }
-
-            // [3순위] 점프 리드타임 제약 해제, 도달 가능한 가장 빠른 1바운드 후보
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                if (candidates[i].BounceCountBeforeArrival != 1) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead &&
-                    Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                {
-                    selected = candidates[i];
-                    return true;
-                }
-            }
-
-            // [4순위] 점프 리드타임 제약 해제, 도달 가능한 가장 빠른 발리(바운스 0회) 후보
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (isServeToss || shouldForceBounce) continue;
-                if (candidates[i].BounceCountBeforeArrival != 0) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead &&
-                    Mathf.Abs(candidates[i].Position.x - currentX) / moveSpeed <= remaining)
-                {
-                    selected = candidates[i];
-                    return true;
-                }
-            }
-
-            // [5순위] 도달 불가 시 최종 낙하지점을 최대한 쫓아감 (1바운드 우선, 발리 차선)
-            float maxArrivalTime = -1f;
-            int bestIndex = -1;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                if (shouldForceBounce && candidates[i].BounceCountBeforeArrival != 1) continue;
-                if (!shouldForceBounce && candidates[i].BounceCountBeforeArrival != 1 && candidates[i].BounceCountBeforeArrival != 0) continue;
-
-                float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                if (remaining > swingLead && candidates[i].ArrivalTime > maxArrivalTime)
-                {
-                    maxArrivalTime = candidates[i].ArrivalTime;
-                    bestIndex = i;
-                }
-            }
-
-            if (bestIndex == -1)
-            {
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    if (isServeToss && candidates[i].ArrivalTime < 0.35f) continue;
-                    if (shouldForceBounce && candidates[i].BounceCountBeforeArrival != 1) continue;
-                    if (!shouldForceBounce && candidates[i].BounceCountBeforeArrival != 1 && candidates[i].BounceCountBeforeArrival != 0) continue;
-
-                    float remaining = candidates[i].ArrivalTime - elapsedObservationAge;
-                    if (remaining > 0f && candidates[i].ArrivalTime > maxArrivalTime)
-                    {
-                        maxArrivalTime = candidates[i].ArrivalTime;
-                        bestIndex = i;
-                    }
-                }
-            }
-
-            if (bestIndex != -1)
-            {
-                selected = candidates[bestIndex];
                 return true;
             }
 
-            selected = default;
+            if (preferBounce && TrySelectBest(candidates, currentX, moveSpeed, elapsedObservationAge, swingLead,
+                    jumpLead, isServeToss, stance, false, true, courtMaxX, out selected))
+            {
+                return true;
+            }
+
+            if (TrySelectBest(candidates, currentX, moveSpeed, elapsedObservationAge, 0f, 0f,
+                    isServeToss, stance, preferBounce, false, courtMaxX, out selected))
+            {
+                return true;
+            }
+
+            if (preferBounce && TrySelectBest(candidates, currentX, moveSpeed, elapsedObservationAge, 0f, 0f,
+                    isServeToss, stance, false, false, courtMaxX, out selected))
+            {
+                return true;
+            }
+
             return false;
+        }
+
+        private static bool TrySelectBest(
+            IReadOnlyList<BallArrivalCandidate> candidates,
+            float currentX,
+            float moveSpeed,
+            float elapsedObservationAge,
+            float swingLead,
+            float jumpLead,
+            bool isServeToss,
+            AiDefenseStance stance,
+            bool preferBounce,
+            bool requireReachable,
+            float courtMaxX,
+            out BallArrivalCandidate selected)
+        {
+            selected = default;
+            float bestScore = float.NegativeInfinity;
+            bool found = false;
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                BallArrivalCandidate candidate = candidates[i];
+                if (!IsEligible(candidate, currentX, moveSpeed, elapsedObservationAge, swingLead, jumpLead,
+                        isServeToss, preferBounce, requireReachable, courtMaxX))
+                {
+                    continue;
+                }
+
+                float score = ScoreCandidate(candidate, currentX, elapsedObservationAge, stance, preferBounce,
+                    requireReachable);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    selected = candidate;
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        private static bool IsEligible(
+            BallArrivalCandidate candidate,
+            float currentX,
+            float moveSpeed,
+            float elapsedObservationAge,
+            float swingLead,
+            float jumpLead,
+            bool isServeToss,
+            bool preferBounce,
+            bool requireReachable,
+            float courtMaxX)
+        {
+            if (candidate.Position.x < 0f)
+            {
+                return false;
+            }
+
+            if (candidate.Position.x > courtMaxX)
+            {
+                return false;
+            }
+
+            if (isServeToss && candidate.ArrivalTime < 0.35f)
+            {
+                return false;
+            }
+
+            bool isBounce = candidate.BounceCountBeforeArrival == 1;
+            bool isVolley = candidate.BounceCountBeforeArrival == 0;
+            if (preferBounce && !isBounce)
+            {
+                return false;
+            }
+
+            if (!preferBounce && !isBounce && !isVolley)
+            {
+                return false;
+            }
+
+            float remaining = candidate.ArrivalTime - elapsedObservationAge;
+            if (remaining <= swingLead)
+            {
+                return false;
+            }
+
+            if (requireReachable)
+            {
+                float travelTime = Mathf.Abs(candidate.Position.x - currentX) / Mathf.Max(moveSpeed, 0.01f);
+                if (travelTime > remaining + 0.08f)
+                {
+                    return false;
+                }
+            }
+
+            if (candidate.RequiresJump && remaining < jumpLead)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static float ScoreCandidate(
+            BallArrivalCandidate candidate,
+            float currentX,
+            float elapsedObservationAge,
+            AiDefenseStance stance,
+            bool preferBounce,
+            bool requireReachable)
+        {
+            float remaining = Mathf.Max(0f, candidate.ArrivalTime - elapsedObservationAge);
+            float distance = Mathf.Abs(candidate.Position.x - currentX);
+            bool isBounce = candidate.BounceCountBeforeArrival == 1;
+            bool isVolley = candidate.BounceCountBeforeArrival == 0;
+
+            float score = remaining * 12f - distance * 4f;
+            if (isBounce)
+            {
+                score += preferBounce ? 500f : 120f;
+            }
+            else if (isVolley)
+            {
+                score += preferBounce ? -120f : 80f;
+            }
+
+            if (candidate.RequiresJump)
+            {
+                score -= 35f;
+            }
+
+            if (!requireReachable)
+            {
+                score -= distance * 12f;
+            }
+
+            switch (stance)
+            {
+                case AiDefenseStance.NetDropDefense:
+                    score += Mathf.Clamp01((3.2f - candidate.Position.x) / 3.2f) * 180f;
+                    score += Mathf.Clamp01((1.7f - candidate.Position.y) / 1.7f) * 90f;
+                    break;
+                case AiDefenseStance.DeepLobDefense:
+                    score += Mathf.Clamp01((candidate.Position.x - 4.8f) / 3f) * 220f;
+                    score += isBounce ? 180f : -80f;
+                    break;
+                case AiDefenseStance.OverheadSkimDefense:
+                    score += isBounce ? 220f : -160f;
+                    score += Mathf.Clamp01((candidate.Position.x - currentX) / 2.5f) * 80f;
+                    break;
+                case AiDefenseStance.EmergencyReturn:
+                    score += Mathf.Clamp01(1.6f - distance) * 140f;
+                    break;
+                case AiDefenseStance.ServeReceive:
+                    score += isBounce ? 220f : -90f;
+                    break;
+                case AiDefenseStance.BounceDefense:
+                case AiDefenseStance.None:
+                default:
+                    score += isBounce ? 160f : 0f;
+                    break;
+            }
+
+            return score;
+        }
+
+        private static bool ShouldPreferBounce(
+            AiDefenseStance stance,
+            bool forceBounceMode,
+            bool isServeToss)
+        {
+            if (isServeToss)
+            {
+                return false;
+            }
+
+            if (forceBounceMode)
+            {
+                return true;
+            }
+
+            return stance == AiDefenseStance.BounceDefense ||
+                   stance == AiDefenseStance.ServeReceive ||
+                   stance == AiDefenseStance.NetDropDefense ||
+                   stance == AiDefenseStance.DeepLobDefense ||
+                   stance == AiDefenseStance.OverheadSkimDefense;
         }
     }
 }

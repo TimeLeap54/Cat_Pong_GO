@@ -2,7 +2,8 @@
     "name": "CatTennis.Rebuild",
     "rootNamespace": "CatTennis.Rebuild",
     "references": [
-        "CatTennis.BallPhysics.Core"
+        "CatTennis.BallPhysics.Core",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
